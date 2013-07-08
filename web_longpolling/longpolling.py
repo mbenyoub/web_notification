@@ -6,6 +6,18 @@ from multiprocessing import Process
 
 LONGPOOLTIMEOUT = 5
 
+#WITH bottle
+#from gevent import monkey
+#monkey.patch_all()
+#import bottle
+#import urllib2
+
+#@bottle.route(...)
+#def callback():
+       #urllib2.open(...)
+
+       #bottle.run(server='gevent')
+
 
 #def getMessage(response, path_info):
     #from gevent import sleep
