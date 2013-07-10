@@ -2,34 +2,24 @@
 
 from openerp.tools import config
 from multiprocessing import Process
+from simplejson import dumps
 
 
 LONGPOOLTIMEOUT = 5
 
-#WITH bottle
-#from gevent import monkey
-#monkey.patch_all()
-#import bottle
-#import urllib2
 
-#@bottle.route(...)
-#def callback():
-       #urllib2.open(...)
+class Json(object):
 
-       #bottle.run(server='gevent')
+    def __call__(self, function):
+        def wrap(*args, **kwargs):
+            result = function(*args, **kwargs)
+            print result
+            return dumps(result)
+        return wrap
 
 
-#def getMessage(response, path_info):
-    #from gevent import sleep
-    #while True:
-        #current = datetime.datetime.now()
-        #response.put('%s\n' % current.strftime("%Y-%m-%d %I:%M:%S"))
-        #sleep(2)
-    #response.put(StopIteration)
-
-
+@Json()
 def application(request, start_response):
-    import simplejson
     from gevent import sleep
     status = '200 OK'
     headers = [
@@ -37,28 +27,8 @@ def application(request, start_response):
     ]
     start_response(status, headers)
     r = 'titi'
-    r = simplejson.dumps(r)
     sleep(5)
-    print r
     return r
-    #yield simplejson.dumps(['titi'])
-    #while True:
-        #print "*" * 80
-        #yield simplejson.dumps('titi')
-        #sleep(5)
-
-    #from gevent import spawn, queue
-    #import simplejson
-    #response = queue.Queue()
-    #response.put(' ' * 998)
-    #response.put("Current Time:\n\n")
-    #spawn(getMessage, response, request.get('PATH_INFO', '/')[1:])
-    #body = simplejson.dumps(response)
-    #start_response('200 OK', [
-        #('Content-Type', 'application/json'),
-        #('Content-Length', str(len(body))),
-    #])
-    #return body
 
 
 def process_longpolling(host, port):
