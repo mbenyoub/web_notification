@@ -37,7 +37,8 @@ def application(request, start_response):
     ]
     start_response(status, headers)
     r = 'titi'
-    #simplejson.encoder(r)
+    r = simplejson.dumps(r)
+    sleep(5)
     print r
     return r
     #yield simplejson.dumps(['titi'])
