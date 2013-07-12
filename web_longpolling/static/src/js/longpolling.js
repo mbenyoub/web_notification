@@ -1,7 +1,7 @@
 openerp.web_longpolling = function(instance) {
     var ERROR_DELAY = 30000;
     instance.web.LongPolling = instance.web.Controller.extend({
-        init_longpolling: function(parent, service, data, success, error){
+        start_longpolling: function(parent, service, data, success, error){
             var self = this;
             this.longpolling_service = false;
             this.rpc('/web/longpolling/get_url', {}).then(function(url){
@@ -16,9 +16,13 @@ openerp.web_longpolling = function(instance) {
                     self.longpolling_success = success || function(collection){};
                     //TODO call crashmanager
                     self.longpolling_error = error || function(xhr, status, errorThrown){};
+                    self.longpolling_run= true;
                     self.longpolling();
                 }
             });
+        },
+        stop_longpolling= function(){
+            this.longpolling_run = false;
         },
         longpolling: function(){
             var self = this;
@@ -37,12 +41,12 @@ openerp.web_longpolling = function(instance) {
                 complete: function(xhr, status, errorThrown){
                     if (status === 'error' || !xhr.responseText) {
                         self.longpolling_error(xhr, status, errorThrown);
-                        if (xhr.status !== 404) self.longpolling();
+                        if (xhr.status !== 404) self.longpolling_run = false;
                     } else {
                         var data = xhr.responseText;
                         self.longpolling_success(data);
-                        self.longpolling();
                     }
+                    if (self.longpolling_run) self.longpolling();
                 }
             })
         },
@@ -52,7 +56,7 @@ openerp.web_longpolling = function(instance) {
         show_common: function() {
             this._super();
             self.longpolling = new instance.web.LongPolling();
-            self.longpolling.init_longpolling(
+            self.longpolling.start_longpolling(
                 this, '/42', 
                 {toto: 'tata'},
                 function(yeah) {
