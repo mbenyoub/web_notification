@@ -6,6 +6,9 @@ from simplejson import dumps, loads
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException
+from werkzeug.contrib.sessions import FilesystemSessionStore
+from openerp.addons.web.http import session_path
+from openerp.addons.web.session import AuthenticationError
 
 
 LONGPOOLTIMEOUT = 5
@@ -13,8 +16,11 @@ LONGPOOLTIMEOUT = 5
 
 class LongPolling(object):
 
-    path_map = Map()
-    view_function = {}
+    def __init__(self):
+        self.path_map = Map()
+        self.view_function = {}
+        path = session_path()
+        self.session_store = FilesystemSessionStore(path)
 
     def route(self, path='/', mode='json', mustbeauthenticate=True):
         assert path not in (False, None), "Bad route path: " + str(path)
@@ -22,7 +28,6 @@ class LongPolling(object):
         assert mode in ('json', 'http'), "Mode must be json or http: " + str(path)
         assert isinstance(mustbeauthenticate, bool)
 
-        #TODO make authenticate
         def wrapper(function):
             if path[0] == '/':
                 realpath = '/openerplongpolling' + path
@@ -38,6 +43,7 @@ class LongPolling(object):
             self.view_function[endpoint] = {
                 'function': function,
                 'mode': mode,
+                'mustbeauthenticate': mustbeauthenticate,
             }
             return function
         return wrapper
@@ -51,9 +57,20 @@ class LongPolling(object):
         adapter = self.path_map.bind_to_environ(request.environ)
         try:
             endpoint, values = adapter.match()
+            sid = request.cookies.get('sid')
+            session = None
+            if sid:
+                session = self.session_store.get(sid)
+            session_id = request.args.get('session_id')
+            self.session = None
+            if session and session_id:
+                self.session = session.get(session_id)
+
+            if self.view_function[endpoint]['mustbeauthenticate']:
+                if not self.session:
+                    raise AuthenticationError('No session found')
+                self.session.assert_valid()
             values.update(loads(request.args.get('data')))
-            request.db = request.args.get('db')
-            request.uid = request.args.get('uid')
             result = self.view_function[endpoint]['function'](
                 request, **values)
             if self.view_function[endpoint]['mode'] == 'json':
@@ -63,7 +80,7 @@ class LongPolling(object):
                 mimetype = 'text/html'
 
             return Response(result, mimetype=mimetype)
-        except HTTPException, e:
+        except (HTTPException, AuthenticationError), e:
             return e
 
 longpolling = LongPolling()

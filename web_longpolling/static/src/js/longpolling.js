@@ -46,8 +46,7 @@ openerp.web_longpolling = function(instance) {
                 url: this.longpolling_service,
                 type: 'GET',
                 data: {
-                    db: self.parent.session.db,
-                    uid: self.parent.session.uid,
+                    session_id: self.parent.session.session_id,
                     data: JSON.stringify(self.longpolling_data)
                 },
                 cache: false,
