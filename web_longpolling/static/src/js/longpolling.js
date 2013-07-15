@@ -2,15 +2,17 @@ openerp.web_longpolling = function(instance) {
     var ERROR_DELAY = 30000;
     instance.web.LongPolling = instance.web.Controller.extend({
         init: function(){
+            this._super.apply(this, arguments);
             this.longpolling_run = false;
             this.crashmanager = new instance.web.CrashManager();
         },
-        start_longpolling: function(parent, service, data, success, error){
+        start_longpolling: function(session, service, data, success, error){
             var self = this;
             this.longpolling_service = false;
             this.rpc('/web/longpolling/get_url', {}).then(function(url){
+                console.log('url : ' + url)
                 if (url) {
-                    self.parent = parent;
+                    self.session = session;
                     self.longpolling_service = '/openerplongpolling';
                     self.longpolling_data = data || {};
                     if (service.indexOf('/') === 0) 
@@ -46,7 +48,7 @@ openerp.web_longpolling = function(instance) {
                 url: this.longpolling_service,
                 type: 'GET',
                 data: {
-                    session_id: self.parent.session.session_id,
+                    session_id: self.session.session_id,
                     data: JSON.stringify(self.longpolling_data)
                 },
                 cache: false,
@@ -57,7 +59,7 @@ openerp.web_longpolling = function(instance) {
                         self.longpolling_error(xhr, status, errorThrown);
                         if (xhr.status === 404) self.longpolling_run = false;
                     } else {
-                        var data = xhr.responseText;
+                        var data = JSON.parse(xhr.responseText);
                         self.longpolling_success(data);
                     }
                     if (self.longpolling_run) self.longpolling();
@@ -66,17 +68,17 @@ openerp.web_longpolling = function(instance) {
         },
     });
     // just for test 
-    instance.web.WebClient.include({ 
-        show_common: function() {
-            this._super();
-            self.longpolling = new instance.web.LongPolling();
-            self.longpolling.start_longpolling(
-                this, '/42', 
-                {toto: 'tata'},
-                function(yeah) {
-                console.log('success')
-                console.log(yeah)
-            });
-        },
-    });
+    //instance.web.WebClient.include({ 
+        //show_common: function() {
+            //this._super();
+            //self.longpolling = new instance.web.LongPolling();
+            //self.longpolling.start_longpolling(
+                //this, '/42', 
+                //{toto: 'tata'},
+                //function(yeah) {
+                //console.log('success')
+                //console.log(yeah)
+            //});
+        //},
+    //});
 };

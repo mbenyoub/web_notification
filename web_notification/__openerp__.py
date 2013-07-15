@@ -37,6 +37,7 @@ Display Notification for user
         'base',
         'web',
         'mail',
+        'web_longpolling',
     ],
     'data': [
         'base.xml',
