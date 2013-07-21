@@ -11,7 +11,7 @@ openerp.web_notification = function (instance) {
             console.log('yop')
             if (!this.longpolling.longpolling_run){
                 this.longpolling.start_longpolling(
-                    this.session, '/p', {},
+                    this.session, '/notification', {},
                     function (notifications) {
                         console.log(notifications);
                         _(notifications).each( function(notification) {

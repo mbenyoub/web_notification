@@ -17,15 +17,10 @@ LONGPOOLTIMEOUT = 5
 class LongPolling(object):
 
     def __init__(self):
-        print "init 1"
         self.path_map = Map()
-        print "init 2"
         self.view_function = {}
-        print "init 3"
         path = session_path()
-        print "init 4"
         self.session_store = FilesystemSessionStore(path)
-        print "init 5"
 
     def route(self, path='/', mode='json', mustbeauthenticate=True):
         assert path not in (False, None), "Bad route path: " + str(path)
@@ -54,20 +49,14 @@ class LongPolling(object):
         return wrapper
 
     def application(self, environ, start_response):
-        print 'application'
         request = Request(environ)
         response = self.dispatch_request(request)
         return response(environ, start_response)
 
     def dispatch_request(self, request):
-        print 'distach 1'
         adapter = self.path_map.bind_to_environ(request.environ)
-        print 'distach 2'
         try:
-            print 'distach 3'
             endpoint, values = adapter.match()
-            print endpoint
-            print self.view_function
             sid = request.cookies.get('sid')
             session = None
             if sid:
@@ -92,7 +81,6 @@ class LongPolling(object):
 
             return Response(result, mimetype=mimetype)
         except (HTTPException, AuthenticationError), e:
-            print 'fuck'
             return e
 
 longpolling = LongPolling()
@@ -100,7 +88,6 @@ longpolling = LongPolling()
 
 def process_longpolling(host, port):
     from gevent import pywsgi
-    from time import sleep
     server = pywsgi.WSGIServer((host, port), longpolling.application)
     print "Start long polling server %r:%r" % (host, port)
     server.serve_forever()
@@ -115,6 +102,7 @@ def start_server():
             p.deamon = True
             p.start()
 
+
 @longpolling.route('/notification/')
 def foo(request, **kwargs):
     r = {
@@ -123,8 +111,6 @@ def foo(request, **kwargs):
         'sticky': True,
         'type': 'notify',
     }
-    print r
-
     from gevent import sleep
     sleep(5)
     return [r]
