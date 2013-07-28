@@ -17,7 +17,7 @@ openerp.web_longpolling = function(instance) {
                 self.longpolling_service += '/' + service
             self.longpolling_success = success || function(collection){};
             self.longpolling_error = error || function(xhr, status){
-                if (xhr.status !== 502) {
+                if (xhr.status !== 502 && xhr.status !== 408) {
                     var error = {
                         code: xhr.status,
                         message: "XmlHttpRequestError ",

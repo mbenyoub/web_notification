@@ -2,18 +2,16 @@ openerp.web_notification = function (instance) {
 
     instance.web.WebClient.include({ 
         init:function (parent){
+            this.lg_notification = new instance.web.LongPolling();
             this._super(parent);
-            this.longpolling = new instance.web.LongPolling();
         },
         show_application: function() {
             var self = this;
             this._super();
-            console.log('yop')
-            if (!this.longpolling.longpolling_run){
-                this.longpolling.start_longpolling(
+            if (!this.lg_notification.longpolling_run){
+                this.lg_notification.start_longpolling(
                     this.session, '/notification', {},
                     function (notifications) {
-                        console.log(notifications);
                         _(notifications).each( function(notification) {
                             if (notification.type == 'warn'){
                                 self.do_warn(notification.title, 
@@ -27,16 +25,12 @@ openerp.web_notification = function (instance) {
                                 }
                             }
                         });
-                    },
-                    function (xhr, status) {
-                        console.log(xhr);
-                        console.log(status);
                     }
                 );
             }
         },
         on_logout: function() { 
-            this.longpolling.stop_longpolling();
+            this.lg_notification.stop_longpolling();
             this._super();
         },
     });
