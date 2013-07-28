@@ -1,5 +1,4 @@
 openerp.web_longpolling = function(instance) {
-    var ERROR_DELAY = 30000;
     instance.web.LongPolling = instance.web.Controller.extend({
         init: function(){
             this._super.apply(this, arguments);
@@ -48,7 +47,6 @@ openerp.web_longpolling = function(instance) {
                 },
                 cache: false,
                 dataType: 'json',
-                timeout: ERROR_DELAY,
                 complete: function(xhr, status, errorThrown){
                     if (status === 'error' || !xhr.responseText) {
                         self.longpolling_error(xhr, status, errorThrown);
@@ -62,18 +60,4 @@ openerp.web_longpolling = function(instance) {
             })
         },
     });
-    // just for test 
-    //instance.web.WebClient.include({ 
-        //show_common: function() {
-            //this._super();
-            //self.longpolling = new instance.web.LongPolling();
-            //self.longpolling.start_longpolling(
-                //this, '/42', 
-                //{toto: 'tata'},
-                //function(yeah) {
-                //console.log('success')
-                //console.log(yeah)
-            //});
-        //},
-    //});
 };

@@ -6,13 +6,13 @@ from multiprocessing import Process
 from simplejson import dumps, loads
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, Unauthorized, RequestTimeout
 from werkzeug.contrib.sessions import FilesystemSessionStore
 from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 
 
-LONGPOOLTIMEOUT = 5
+LONGPOOLTIMEOUT = 30
 
 
 class LongPolling(object):
@@ -23,7 +23,6 @@ class LongPolling(object):
         self.loaded_bases = []
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
-        self.registry = None
 
     def route(self, path='/', mode='json', mustbeauthenticate=True):
         assert path not in (False, None), "Bad route path: " + str(path)
@@ -63,6 +62,9 @@ class LongPolling(object):
         self.loaded_bases.append(db)
 
     def dispatch_request(self, request):
+        from gevent import Timeout
+        timeout = Timeout(LONGPOOLTIMEOUT)
+        timeout.start()
         adapter = self.path_map.bind_to_environ(request.environ)
         try:
             endpoint, values = adapter.match()
@@ -93,8 +95,12 @@ class LongPolling(object):
                 mimetype = 'text/html'
 
             return Response(result, mimetype=mimetype)
-        except (HTTPException, AuthenticationError), e:
+        except HTTPException, e:
             return e
+        except AuthenticationError, e:
+            return Unauthorized()
+        except Timeout, e:
+            return RequestTimeout()
 
 longpolling = LongPolling()
 
