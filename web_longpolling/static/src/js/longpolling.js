@@ -3,7 +3,6 @@ openerp.web_longpolling = function(instance) {
         init: function(){
             this._super.apply(this, arguments);
             this.longpolling_run = false;
-            this.crashmanager = new instance.web.CrashManager();
         },
         start_longpolling: function(session, service, data, success, error){
             var self = this;
@@ -16,20 +15,7 @@ openerp.web_longpolling = function(instance) {
             else
                 self.longpolling_service += '/' + service
             self.longpolling_success = success || function(collection){};
-            self.longpolling_error = error || function(xhr, status){
-                if (xhr.status !== 502 && xhr.status !== 408) {
-                    var error = {
-                        code: xhr.status,
-                        message: "XmlHttpRequestError ",
-                        data: {
-                            type: "xhr" + status, 
-                            debug: xhr.responseText, 
-                            objects: [xhr] 
-                        }
-                    };
-                    self.crashmanager.rpc_error(error);
-                }
-            };
+            self.longpolling_error = error || function(xhr, status){};
             self.longpolling_run= true;
             self.longpolling();
         },
