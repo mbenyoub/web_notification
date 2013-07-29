@@ -15,5 +15,4 @@
         'static/src/js/longpolling.js',
     ],
     'installable': True,
-    'post_load': 'post_load',
 }
