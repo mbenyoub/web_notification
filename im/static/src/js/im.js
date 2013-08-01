@@ -80,7 +80,6 @@ openerp.im = function(instance) {
             return this.user_search_dm.add(users.call("search_users", 
                         [[["name", "ilike", this.get("current_search")], ["id", "<>", instance.session.uid]],
                         ["name", "user", "im_status"], USERS_LIMIT], {context:new instance.web.CompoundContext()})).then(function(result) {
-                console.log(result);
                 self.c_manager.add_to_user_cache(result);
                 self.$(".oe_im_input").val("");
                 var old_users = self.users;
