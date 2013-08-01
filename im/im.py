@@ -20,16 +20,11 @@
 ##############################################################################
 
 import openerp
-#import openerp.tools.config
-#import openerp.modules.registry
-#from openerp.addons.web.http import request
 from openerp.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
 import datetime
+from datetime import datetime as dt
 from openerp.osv import osv, fields
-#import time
 import logging
-#import json
-#import select
 from openerp.addons.web_longpolling.longpolling import longpolling
 
 _logger = logging.getLogger(__name__)
@@ -41,21 +36,24 @@ DISCONNECTION_TIMER = POLL_TIMER + 5
 @longpolling.route('im')
 def receive(request, **kwargs):
     from gevent import sleep
+    start = dt.now()
     cr, uid, context = request.cr, request.uid, request.context
     im_user_obj = request.pool.get('im.user')
-    #im_user_obj.im_connect(cr, uid, context=context)
     im_message_obj = request.pool.get('im.message')
     my_id = im_user_obj.get_by_user_id(cr, uid, uid, context=context)
-    #TODO siganl connected
-    status_change = {}
     message_received = []
-    while not status_change and not message_received:
+    now = dt.now()
+    while ((now - start).seconds < POLL_TIMER - 5) and not message_received:
         sleep(0.1)
         message_received = im_message_obj.get_messages(cr, uid, context=context)
+        now = dt.now()
+
+    users_status = im_user_obj.get_users_status(cr, uid, context=context)
+    im_user_obj.im_connect(cr, uid, my_id['id'], context=context)
 
     return {
         'user_id': my_id,
-        'status': status_change,
+        'status': users_status,
         'messages': message_received,
     }
 
@@ -117,20 +115,22 @@ class im_message(osv.Model):
 class im_user(osv.Model):
     _name = "im.user"
 
+    def get_users_status(self, cr, uid, context=None):
+        ids = self.search(cr, openerp.SUPERUSER_ID, [('user', '!=', uid)],
+                          context=context)
+        return self.read(cr, openerp.SUPERUSER_ID, ids, ['im_status'],
+                         context=context)
+
     def _im_status(self, cr, uid, ids, something, something_else, context=None):
         res = {}
         current = datetime.datetime.now()
         delta = datetime.timedelta(0, DISCONNECTION_TIMER)
-        data = self.read(cr, openerp.SUPERUSER_ID, ids, ["im_last_status_update", "im_last_status"], context=context)
+        data = self.read(cr, openerp.SUPERUSER_ID, ids, ["im_last_status_update"], context=context)
         for obj in data:
-            last_update = datetime.datetime.strptime(obj["im_last_status_update"], DEFAULT_SERVER_DATETIME_FORMAT)
-            print "*" * 80
-            print obj['id']
-            print (last_update + delta) > current
-            print obj['im_last_status']
-            res[obj["id"]] = obj["im_last_status"] and (last_update + delta) > current
+            last_update = datetime.datetime.strptime(
+                obj["im_last_status_update"], DEFAULT_SERVER_DATETIME_FORMAT)
+            res[obj["id"]] = (last_update + delta) > current
 
-        print res
         return res
 
     def search_users(self, cr, uid, domain, fields, limit, context=None):
@@ -139,16 +139,8 @@ class im_user(osv.Model):
         found = self.get_by_user_ids(cr, uid, found, context=context)
         return self.read(cr, uid, found, fields, context=context)
 
-    def im_connect(self, cr, uid, context=None):
-        self._im_change_status(cr, uid, True, context)
-
-    def im_disconnect(self, cr, uid, context=None):
-        self._im_change_status(cr, uid, False, context)
-
-    def _im_change_status(self, cr, uid, new_one, context=None):
-        id = self.get_by_user_id(cr, uid, uid, context=context)["id"]
+    def im_connect(self, cr, uid, id, context=None):
         vals = {
-            "im_last_status": new_one,
             "im_last_status_update": datetime.datetime.now().strftime(
                 DEFAULT_SERVER_DATETIME_FORMAT),
         }
@@ -196,8 +188,6 @@ class im_user(osv.Model):
                                 string="Image", readonly=True),
         'user': fields.many2one(
             "res.users", string="User", select=True, ondelete='cascade'),
-        'im_last_status': fields.boolean(
-            strint="Instant Messaging Last Status"),
         'im_last_status_update': fields.datetime(
             string="Instant Messaging Last Status Update"),
         'im_status': fields.function(
@@ -205,7 +195,6 @@ class im_user(osv.Model):
     }
 
     _defaults = {
-        'im_last_status': False,
         'im_last_status_update': lambda *args: datetime.datetime.now(
         ).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
     }

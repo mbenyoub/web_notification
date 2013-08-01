@@ -202,13 +202,16 @@ openerp.im = function(instance) {
             this.lg_im.start_longpolling(
                 this.__parentedParent.session, '/im', {},
                 function (result) {
-                    user_id = result.user_id;
-                    status = result.status;
-                    messages = result.messages;
-                    //status TODO
-                    var user_ids = _.without(_.union(
+                    var user_id = result.user_id;
+                    var status = result.status;
+                    var messages = result.messages;
+                    _.each(status, function(el) {
+                        if (self.get_user(el.id))
+                            self.get_user(el.id).set(el);
+                    });
+                    var user_ids = _.union(
                         _.pluck(messages, 'from_id'),
-                        _.pluck(messages, 'to_id')), user_id);
+                        _.pluck(messages, 'to_id'));
                     self.ensure_users(user_ids).then(function() {
                         _.each(messages, function(mes) {
                             if (mes.from_id != user_id.id){
@@ -255,26 +258,6 @@ openerp.im = function(instance) {
         },
         get_user: function(user_id) {
             return this.users_cache[user_id];
-        },
-        poll: function() {
-            var self = this;
-            var user_ids = _.map(this.users_cache, function(el) {
-                return el.get("id");
-            });
-            this.rpc("/longpolling/im/poll", {
-                last: this.last,
-                users_watch: user_ids,
-                context: instance.web.pyeval.eval('context', {}),
-            }, {shadow: true}).then(function(result) {
-                //status
-                _.each(result.users_status, function(el) {
-                    if (self.get_user(el.id))
-                        self.get_user(el.id).set(el);
-                });
-            }, function(unused, e) {
-                e.preventDefault();
-                setTimeout(_.bind(self.poll, self), ERROR_DELAY);
-            });
         },
         create_ting: function() {
             if (typeof(Audio) === "undefined") {
