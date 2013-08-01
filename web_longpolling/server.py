@@ -2,6 +2,8 @@
 
 from gevent import pywsgi, monkey
 monkey.patch_all()
+import gevent_psycopg2
+gevent_psycopg2.monkey_patch()
 from openerp.tools import config
 from openerp.netsvc import init_logger
 from openerp.addons.web_longpolling.longpolling import longpolling
