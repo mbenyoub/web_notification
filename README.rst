@@ -33,7 +33,7 @@ We need to get 2 python egg:
 
 Appach or Nginx to make a dispatcher.
 
-How use long polling with OpenERP
+How to use long polling with OpenERP
 ---------------------------------
 
 Make your Nginx/Appach conf
@@ -75,7 +75,7 @@ the port:
 Start the OpenERP server
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Install the ``web_longpolling`` module or module who depend of 
+Install the ``web_longpolling`` module or module which depend of 
 ``web_longpolling``::
 
     oe -d mydb -i web_longpolling
@@ -87,8 +87,8 @@ path(default: /openerplongpolling) of dispatch. etc/openerp.cfg::
     longpolling_timeout = 30
 
 
-Start long polling server
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Start the long polling server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 start the server::
 
