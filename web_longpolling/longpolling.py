@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 
 def get_path():
-    path = config.get('longpolling_pat', '/openerplongpolling')
+    path = config.get('longpolling_path', '/openerplongpolling')
     assert path[0] == '/'
     return path
 
