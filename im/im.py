@@ -3,6 +3,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2010 Tiny SPRL (<http://tiny.be>).
+#                  2013 Anybox (<hhtp://www.anybox.fr)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -22,40 +23,13 @@
 import openerp
 from openerp.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
 import datetime
-from datetime import datetime as dt
 from openerp.osv import osv, fields
+from openerp.addons.web_longpolling.longpolling import get_timeout
 import logging
-from openerp.addons.web_longpolling.longpolling import longpolling
 
 _logger = logging.getLogger(__name__)
 
-POLL_TIMER = 30  # TODO use longpolling timeout
-DISCONNECTION_TIMER = POLL_TIMER + 5
-
-
-@longpolling.route('/im')
-def receive(request, **kwargs):
-    from gevent import sleep
-    start = dt.now()
-    cr, uid, context = request.cr, request.uid, request.context
-    im_user_obj = request.pool.get('im.user')
-    im_message_obj = request.pool.get('im.message')
-    my_id = im_user_obj.get_by_user_id(cr, uid, uid, context=context)
-    message_received = []
-    now = dt.now()
-    while ((now - start).seconds < POLL_TIMER - 5) and not message_received:
-        sleep(0.1)
-        message_received = im_message_obj.get_messages(cr, uid, context=context)
-        now = dt.now()
-
-    users_status = im_user_obj.get_users_status(cr, uid, context=context)
-    im_user_obj.im_connect(cr, uid, my_id['id'], context=context)
-
-    return {
-        'user_id': my_id,
-        'status': users_status,
-        'messages': message_received,
-    }
+DISCONNECTION_TIMER = get_timeout() + 5
 
 
 class im_message(osv.Model):

@@ -22,6 +22,10 @@ def get_path():
     return path
 
 
+def get_timeout():
+    return int(config.get('longpolling_timeout', '60'))
+
+
 class LongPolling(object):
 
     def __init__(self):
@@ -29,7 +33,7 @@ class LongPolling(object):
         self.view_function = {}
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
-        self.longpolling_timeout = 60
+        self.longpolling_timeout = get_timeout()
         self._longpolling_serve = False
         self.longpolling_path = get_path()
 
