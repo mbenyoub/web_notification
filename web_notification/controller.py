@@ -2,6 +2,8 @@
 
 from openerp.addons.web_longpolling.longpolling import longpolling
 
+POLL_SLEEP = 0.5
+
 
 @longpolling.route('/notification')
 def get_notifications(request, **kwargs):
@@ -19,7 +21,7 @@ def get_notifications(request, **kwargs):
     ]
     ids = []
     while not ids:
-        sleep(0.1)
+        sleep(POLL_SLEEP)
         ids = model.search(cr, uid, domain, context=context)
         # we are on longpolling if they are no response then the time out cut
         # the connection and restart it
