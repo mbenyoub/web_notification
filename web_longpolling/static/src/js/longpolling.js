@@ -6,18 +6,19 @@ openerp.web_longpolling = function(instance) {
         },
         start_longpolling: function(session, service, data, success, error){
             var self = this;
-            this.longpolling_service = false;
             self.session = session;
-            self.longpolling_service = '/openerplongpolling';
-            self.longpolling_data = data || {};
-            if (service.indexOf('/') === 0) 
-                self.longpolling_service += service;
-            else
-                self.longpolling_service += '/' + service
-            self.longpolling_success = success || function(collection){};
-            self.longpolling_error = error || function(xhr, status){};
-            self.longpolling_run= true;
-            self.longpolling();
+            this.rpc('/web/longpolling/get_path', {}).then(function (path){
+                self.longpolling_service = path;
+                self.longpolling_data = data || {};
+                if (service.indexOf('/') === 0) 
+                    self.longpolling_service += service;
+                else
+                    self.longpolling_service += '/' + service
+                self.longpolling_success = success || function(collection){};
+                self.longpolling_error = error || function(xhr, status){};
+                self.longpolling_run= true;
+                self.longpolling();
+            });
         },
         stop_longpolling: function(){
             this.longpolling_run = false;

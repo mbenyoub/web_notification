@@ -33,7 +33,7 @@ POLL_TIMER = 30  # TODO use longpolling timeout
 DISCONNECTION_TIMER = POLL_TIMER + 5
 
 
-@longpolling.route('im')
+@longpolling.route('/im')
 def receive(request, **kwargs):
     from gevent import sleep
     start = dt.now()

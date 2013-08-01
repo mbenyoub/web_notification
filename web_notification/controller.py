@@ -3,7 +3,7 @@
 from openerp.addons.web_longpolling.longpolling import longpolling
 
 
-@longpolling.route('notification')
+@longpolling.route('/notification')
 def get_notifications(request, **kwargs):
     from gevent import sleep
     cr, uid = request.cr, request.uid

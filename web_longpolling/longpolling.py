@@ -9,9 +9,17 @@ from werkzeug.contrib.sessions import FilesystemSessionStore
 from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
+from openerp.tools import config
+from logging import getLogger
 
 
-LONGPOOLTIMEOUT = 30
+logger = getLogger(__name__)
+
+
+def get_path():
+    path = config.get('longpolling_pat', '/openerplongpolling')
+    assert path[0] == '/'
+    return path
 
 
 class LongPolling(object):
@@ -21,30 +29,37 @@ class LongPolling(object):
         self.view_function = {}
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
+        self.longpolling_timeout = 60
+        self._longpolling_serve = False
+        self.longpolling_path = get_path()
+
+    def serve(self):
+        logger.info('Longpolling serve')
+        self._longpolling_serve = True
 
     def route(self, path='/', mode='json', mustbeauthenticate=True):
         assert path not in (False, None), "Bad route path: " + str(path)
         assert isinstance(path, str), "Path must be a string: " + str(path)
+        assert path[0] == '/', "Path must begin by '/'"
         assert mode in ('json', 'http'), "Mode must be json or http: " + str(path)
         assert isinstance(mustbeauthenticate, bool)
 
         def wrapper(function):
-            if path[0] == '/':
-                realpath = '/openerplongpolling' + path
-            else:
-                realpath = '/openerplongpolling' + '/' + path
-            endpoint = '%s:%s' % (function.__name__, realpath)
-            rule = Rule(realpath, endpoint=endpoint)
-            self.path_map.add(rule)
-            old_func = self.view_function.get(endpoint)
-            if old_func is not None and old_func != function:
-                raise AssertionError('View function mapping is overwriting an '
-                                     'existing endpoint function: %s' % endpoint)
-            self.view_function[endpoint] = {
-                'function': function,
-                'mode': mode,
-                'mustbeauthenticate': mustbeauthenticate,
-            }
+            if self._longpolling_serve:
+                realpath = self.longpolling_path + path
+                endpoint = '%s:%s' % (function.__name__, realpath)
+                rule = Rule(realpath, endpoint=endpoint)
+                self.path_map.add(rule)
+                old_func = self.view_function.get(endpoint)
+                if old_func is not None and old_func != function:
+                    raise AssertionError('View function mapping is overwriting an '
+                                         'existing endpoint function: %s' % endpoint)
+                self.view_function[endpoint] = {
+                    'function': function,
+                    'mode': mode,
+                    'mustbeauthenticate': mustbeauthenticate,
+                }
+                logger.info('Add the rule: %r' % endpoint)
             return function
         return wrapper
 
@@ -55,7 +70,7 @@ class LongPolling(object):
 
     def dispatch_request(self, request):
         from gevent import Timeout
-        timeout = Timeout(LONGPOOLTIMEOUT)
+        timeout = Timeout(self.longpolling_timeout)
         timeout.start()
         adapter = self.path_map.bind_to_environ(request.environ)
         try:
