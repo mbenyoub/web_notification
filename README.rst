@@ -15,7 +15,7 @@ OpenERP server will be inacessible
 The solution is to start a server with greenlet event. All the poll have got 
 the same thread. 
 
-.. warning:: On poll can block all the poll
+.. warning:: One poll can block all the polls
 
 We can not and we don't replace the wsgi OpenERP server. But we can start 
 another server in paralell whith greenlet just for the long polling. the other
@@ -25,6 +25,7 @@ What is the requirement
 -----------------------
 
 We need to get 2 python egg:
+
 * gevent: supply a wsgi client based on greenlet, and patch the python eggs
   to remove blocking loop.
 * gevent_psycopg2: Patch psycopg2 egg for gevent
@@ -35,8 +36,8 @@ Appach or Nginx to make a dispatcher.
 How use long polling with OpenERP
 ---------------------------------
 
-Make your nginx/apach conf
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Make your Nginx/Appach conf
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 exemple a conf for nginx::
 
@@ -65,6 +66,7 @@ exemple a conf for nginx::
 
 
 the port:
+
 * 8069: the OpenERP server
 * 8068: the long polling server
 
@@ -94,6 +96,8 @@ start the server::
 
 
 the server has 3 options:
+
 * -d: Data bases names (Default: the conf file db_name)
 * -i: Interface(Default: 127.0.0.1)
 * -p: Port(Default: 8068)
+
