@@ -8,6 +8,7 @@ openerp.web_notification = function (instance) {
         show_application: function() {
             var self = this;
             this._super();
+            var notif = new instance.web.Model('mail.notification');
             if (!this.lg_notification.longpolling_run){
                 this.lg_notification.start_longpolling(
                     this.session, '/notification', {},
@@ -25,6 +26,8 @@ openerp.web_notification = function (instance) {
                                 }
                             }
                         });
+                        var notif_ids = _.pluck(notifications, 'id');
+                        notif.call('write', [notif_ids, {mode: 'delivery'}]);
                     }
                 );
             }

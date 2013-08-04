@@ -68,14 +68,6 @@ class im_message(osv.Model):
         mess = self.read(cr, openerp.SUPERUSER_ID, mess_ids,
                          ["id", "message", "from_id", 'to_id', "date"],
                          load='_classic_write', context=context)
-        for m in mess:
-            vals = {}
-            if m['from_id'] == my_id:
-                vals['read_by_from'] = True
-            else:
-                vals['read_by_to'] = True
-            self.write(
-                cr, openerp.SUPERUSER_ID, [m['id']], vals, context=context)
 
         return mess
 
@@ -83,6 +75,23 @@ class im_message(osv.Model):
         my_id = self.pool.get('im.user').get_by_user_id(cr, uid, uid)["id"]
         val = {"message": message, 'from_id': my_id, 'to_id': to_user_id}
         self.create(cr, openerp.SUPERUSER_ID, val, context=context)
+        return True
+
+    def received(self, cr, uid, ids, user_id, context=None):
+        print user_id
+        self.pool.get('im.user').im_connect(
+            cr, uid, user_id, context=context)
+        todo = [('from_id', 'read_by_from'), ('to_id', 'read_by_to')]
+        for d, v in todo:
+            domain = [
+                ('id', 'in', ids),
+                (d, '=', user_id),
+            ]
+            mess_ids = self.search(
+                cr, openerp.SUPERUSER_ID, domain, context=context)
+            self.write(
+                cr, openerp.SUPERUSER_ID, mess_ids, {v: True}, context=context)
+
         return True
 
 

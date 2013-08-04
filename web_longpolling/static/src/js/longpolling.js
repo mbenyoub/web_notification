@@ -35,14 +35,17 @@ openerp.web_longpolling = function(instance) {
                 cache: false,
                 dataType: 'json',
                 complete: function(xhr, status, errorThrown){
+                    var x;
                     if (status === 'error' || !xhr.responseText) {
-                        self.longpolling_error(xhr, status, errorThrown);
+                        x = self.longpolling_error(xhr, status, errorThrown);
                         if (xhr.status === 404) self.longpolling_run = false;
                     } else {
                         var data = JSON.parse(xhr.responseText);
-                        self.longpolling_success(data);
+                        x = self.longpolling_success(data);
                     }
-                    if (self.longpolling_run) self.longpolling();
+                    $.when(x).then(function (){
+                        if (self.longpolling_run) self.longpolling();
+                    });
                 }
             })
         },

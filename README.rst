@@ -101,3 +101,33 @@ the server has 3 options:
 * -i: Interface(Default: 127.0.0.1)
 * -p: Port(Default: 8068)
 
+
+How to use long polling in OpenERP module
+-----------------------------------------
+
+Module
+~~~~~~
+
+dependance: web_longpolling(pour js)
+
+Python
+~~~~~~
+
+from openerp.addons.web_longpolling.longpolling import longpolling
+get_timeout
+
+@route
+
+* path
+* mode (json/http)
+* mustbeauthenticate (True/False)  TODO corriger l'orthograhe
+
+.. warning:: Make write on db only at the end of controller
+
+Java Script
+~~~~~~~~~~~
+
+this.lp = instance.web.LongPolling()
+this.lp.start_longpolling(session, path, param, callback1, callback2)
+
+

@@ -198,12 +198,14 @@ openerp.im = function(instance) {
         },
         start_polling: function() {
             var self = this;
+            mess = new instance.web.Model('im.message');
             this.lg_im.start_longpolling(
                 this.__parentedParent.session, '/im', {},
                 function (result) {
+                    var deferred = $.Deferred();
+                    var messages = result.messages;
                     var user_id = result.user_id;
                     var status = result.status;
-                    var messages = result.messages;
                     _.each(status, function(el) {
                         if (self.get_user(el.id))
                             self.get_user(el.id).set(el);
@@ -223,6 +225,13 @@ openerp.im = function(instance) {
                             }
                         });
                     });
+                    var mess_ids = _.pluck(messages, 'id');
+                    mess.call('received', [mess_ids, user_id.id]).then( function(){
+                        setTimeout(function() {
+                            deferred.resolve();
+                        }, 330);
+                    });
+                    return deferred;
                 }
             );
         },

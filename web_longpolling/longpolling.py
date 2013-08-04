@@ -10,6 +10,7 @@ from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
 from openerp.tools import config
+from contextlib import contextmanager
 from logging import getLogger
 
 
@@ -26,6 +27,35 @@ def get_timeout():
     return int(config.get('longpolling_timeout', '60'))
 
 
+@contextmanager
+def rollback_and_close(cursor):
+    try:
+        yield cursor
+    finally:
+        cursor.rollback()
+        cursor.close()
+
+
+class OpenERPObject(object):
+
+    def __init__(self, registry, uid, model):
+        self.registry = registry
+        self.uid = uid
+        self.obj = registry.get(model)
+                # serialized = False => put the the isolation level
+                # READ_COMMITED, without it option, the other commit can not be
+                # used and we have always got the same result for each read
+                #request.cr = request.pool.db.cursor(serialized=False)
+        pass
+
+    def __getattr__(self, fname):
+        def wrappers(*args, **kwargs):
+            cursor = self.registry.db.cursor
+            with rollback_and_close(cursor(serialized=False)) as cr:
+                return getattr(self.obj, fname)(cr, self.uid, *args, **kwargs)
+        return wrappers
+
+
 class LongPolling(object):
 
     def __init__(self):
@@ -36,6 +66,11 @@ class LongPolling(object):
         self.longpolling_timeout = get_timeout()
         self._longpolling_serve = False
         self.longpolling_path = get_path()
+        self.uid = None
+        self.registry = None
+
+    def get_openerp_object(self, model):
+        return OpenERPObject(self.registry, self.uid, model)
 
     def serve(self):
         logger.info('Longpolling serve')
@@ -73,6 +108,10 @@ class LongPolling(object):
         return response(environ, start_response)
 
     def dispatch_request(self, request):
+        def model(m):
+            return self.get_openerp_object(m)
+
+        request.model = model
         from gevent import Timeout
         timeout = Timeout(self.longpolling_timeout)
         timeout.start()
@@ -93,12 +132,8 @@ class LongPolling(object):
 
                 request.authenticate = True
                 request.context = session.context
-                request.uid = session._uid
-                request.pool = RegistryManager.get(session._db)
-                # serialized = False => put the the isolation level
-                # READ_COMMITED, without it option, the other commit can not be
-                # used and we have always got the same result for each read
-                request.cr = request.pool.db.cursor(serialized=False)
+                request.uid = self.uid = session._uid
+                self.registry = RegistryManager.get(session._db)
             elif self.view_function[endpoint]['mustbeauthenticate']:
                 raise AuthenticationError('No session found')
             else:
@@ -108,9 +143,6 @@ class LongPolling(object):
             values.update(loads(request.args.get('data')))
             result = self.view_function[endpoint]['function'](
                 request, **values)
-            if request.cr is not None:
-                request.cr.commit()
-                request.cr.close()
 
             if self.view_function[endpoint]['mode'] == 'json':
                 result = dumps(result)
@@ -120,19 +152,12 @@ class LongPolling(object):
 
             return Response(result, mimetype=mimetype)
         except HTTPException, e:
-            if request.cr is not None:
-                request.cr.close()
             return e
         except AuthenticationError, e:
-            # No session = No cursor to close
             return Unauthorized()
         except Timeout, e:
-            if request.cr is not None:
-                request.cr.close()
             return RequestTimeout()
         except Exception, e:
-            if request.cr is not None:
-                request.cr.close()
             return InternalServerError(str(e))
 
 longpolling = LongPolling()

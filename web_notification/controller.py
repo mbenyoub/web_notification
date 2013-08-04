@@ -8,43 +8,39 @@ POLL_SLEEP = 0.5
 @longpolling.route('/notification')
 def get_notifications(request, **kwargs):
     from gevent import sleep
-    cr, uid = request.cr, request.uid
-    model = request.pool.get('mail.notification')
-    mail = request.pool.get('mail.message')
+    model = request.model('mail.notification')
+    mail = request.model('mail.message')
     context = request.context
-    user = request.pool.get('res.users').read(
-        cr, uid, [uid], ['partner_id', 'notification_sticky'],
+    user = request.model('res.users').read(
+        [request.uid], ['partner_id', 'notification_sticky'],
         context=context, load="_classic_write")[0]
     domain = [
         ('partner_id', '=', user['partner_id']),
         ('mode', 'in', ('notify', 'warn', False, '')),
+        '|',
+        ('force_notification', '=', True),
+        ('message_id.author_id', '=', user['partner_id']),
     ]
-    ids = []
-    while not ids:
-        sleep(POLL_SLEEP)
-        ids = model.search(cr, uid, domain, context=context)
+    while True:
+        ids = model.search(domain, context=context)
         # we are on longpolling if they are no response then the time out cut
         # the connection and restart it
+        if ids:
+            break
+        sleep(POLL_SLEEP)
 
     res = []
-    for this in model.read(cr, uid, ids,
-                           ['message_id', 'mode', 'force_notification'],
-                           context=context,
-                           load="_classic_write"):
-        message = mail.read(cr, uid, [this['message_id']],
-                            ['subject', 'body', 'author_id'],
-                            load="_classic_write",
-                            context=context)[0]
-        condition = message['author_id'] != user['partner_id']
-        condition = condition or this['force_notification']
-        if condition:
-            res.append({
-                'title': message['subject'] or '',
-                'msg': message['body'],
-                'type': this['mode'] or 'notify',
-                'sticky': user['notification_sticky'],
-            })
-    model.write(cr, uid, ids, {'mode': 'delivery'}, context=context)
+    for this in model.read(ids, ['message_id', 'mode'],
+                           context=context, load="_classic_write"):
+        message = mail.read([this['message_id']], ['subject', 'body'],
+                            load="_classic_write", context=context)[0]
+        res.append({
+            'id': this['id'],
+            'title': message['subject'] or '',
+            'msg': message['body'],
+            'type': this['mode'] or 'notify',
+            'sticky': user['notification_sticky'],
+        })
     return res
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
