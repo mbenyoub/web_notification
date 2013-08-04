@@ -78,7 +78,6 @@ class im_message(osv.Model):
         return True
 
     def received(self, cr, uid, ids, user_id, context=None):
-        print user_id
         self.pool.get('im.user').im_connect(
             cr, uid, user_id, context=context)
         todo = [('from_id', 'read_by_from'), ('to_id', 'read_by_to')]
