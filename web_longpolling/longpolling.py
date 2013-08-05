@@ -11,10 +11,14 @@ from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
 from openerp.tools import config
 from contextlib import contextmanager
+from psycopg2 import extensions, OperationalError
 from logging import getLogger
 
 
 logger = getLogger(__name__)
+
+
+CURSORLIMIT = {}
 
 
 def get_path():
@@ -28,12 +32,18 @@ def get_timeout():
 
 
 @contextmanager
-def rollback_and_close(cursor):
+def rollback_and_close(registry):
+    from gevent import sleep
     try:
+        while CURSORLIMIT[registry.db_name] <= 0:
+            sleep(0.1)
+        CURSORLIMIT[registry.db_name] -= 1
+        cursor = registry.db.cursor(serialized=False)
         yield cursor
     finally:
         cursor.rollback()
         cursor.close()
+        CURSORLIMIT[registry.db_name] += 1
 
 
 class OpenERPObject(object):
@@ -42,16 +52,13 @@ class OpenERPObject(object):
         self.registry = registry
         self.uid = uid
         self.obj = registry.get(model)
-                # serialized = False => put the the isolation level
-                # READ_COMMITED, without it option, the other commit can not be
-                # used and we have always got the same result for each read
-                #request.cr = request.pool.db.cursor(serialized=False)
-        pass
+        # serialized = False => put the the isolation level
+        # READ_COMMITED, without it option, the other commit can not be
+        # used and we have always got the same result for each read
 
     def __getattr__(self, fname):
         def wrappers(*args, **kwargs):
-            cursor = self.registry.db.cursor
-            with rollback_and_close(cursor(serialized=False)) as cr:
+            with rollback_and_close(self.registry) as cr:
                 return getattr(self.obj, fname)(cr, self.uid, *args, **kwargs)
         return wrappers
 
@@ -68,13 +75,42 @@ class LongPolling(object):
         self.longpolling_path = get_path()
         self.uid = None
         self.registry = None
+        self.registries = {}
 
     def get_openerp_object(self, model):
         return OpenERPObject(self.registry, self.uid, model)
 
-    def serve(self):
-        logger.info('Longpolling serve')
+    def serve_forever(self, host, port, dbnames, maxcursor=2):
+        """Load dbs and run gevent wsgi server"""
+        from gevent import monkey
+        monkey.patch_all()
+        import gevent_psycopg2
+        gevent_psycopg2.monkey_patch()
+        from gevent.pywsgi import WSGIServer
+        from gevent.socket import wait_read, wait_write
+
+        def gevent_wait_callback(conn, timeout=None):
+            """A wait callback useful to allow gevent to work with Psycopg."""
+            while 1:
+                state = conn.poll()
+                if state == extensions.POLL_OK:
+                    break
+                elif state == extensions.POLL_READ:
+                    wait_read(conn.fileno(), timeout=timeout)
+                elif state == extensions.POLL_WRITE:
+                    wait_write(conn.fileno(), timeout=timeout)
+                else:
+                    raise OperationalError("Bad result from poll: %r" % state)
+
+        extensions.set_wait_callback(gevent_wait_callback)
         self._longpolling_serve = True
+        for db in dbnames:
+            self.registries[db] = RegistryManager.get(db)
+            CURSORLIMIT[db] = maxcursor
+
+        server = WSGIServer((host, port), self.application)
+        logger.info("Start long polling server %r:%s", host, port)
+        server.serve_forever()
 
     def route(self, path='/', mode='json', mustbeauthenticate=True):
         assert path not in (False, None), "Bad route path: " + str(path)
@@ -108,10 +144,6 @@ class LongPolling(object):
         return response(environ, start_response)
 
     def dispatch_request(self, request):
-        def model(m):
-            return self.get_openerp_object(m)
-
-        request.model = model
         from gevent import Timeout
         timeout = Timeout(self.longpolling_timeout)
         timeout.start()
@@ -133,12 +165,16 @@ class LongPolling(object):
                 request.authenticate = True
                 request.context = session.context
                 request.uid = self.uid = session._uid
-                self.registry = RegistryManager.get(session._db)
+                self.registry = self.registries.get(session._db)
             elif self.view_function[endpoint]['mustbeauthenticate']:
                 raise AuthenticationError('No session found')
             else:
                 request.authenticate = False
                 request.context = {}
+
+            def model(m):
+                return self.get_openerp_object(m)
+            request.model = model
 
             values.update(loads(request.args.get('data')))
             result = self.view_function[endpoint]['function'](
