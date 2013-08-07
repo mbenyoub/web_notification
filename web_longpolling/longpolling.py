@@ -112,12 +112,12 @@ class LongPolling(object):
         logger.info("Start long polling server %r:%s", host, port)
         server.serve_forever()
 
-    def route(self, path='/', mode='json', mustbeauthenticate=True):
+    def route(self, path='/', mode='json', mustbeauthenticated=True):
         assert path not in (False, None), "Bad route path: " + str(path)
         assert isinstance(path, str), "Path must be a string: " + str(path)
         assert path[0] == '/', "Path must begin by '/'"
         assert mode in ('json', 'http'), "Mode must be json or http: " + str(path)
-        assert isinstance(mustbeauthenticate, bool)
+        assert isinstance(mustbeauthenticated, bool)
 
         def wrapper(function):
             if self._longpolling_serve:
@@ -132,7 +132,7 @@ class LongPolling(object):
                 self.view_function[endpoint] = {
                     'function': function,
                     'mode': mode,
-                    'mustbeauthenticate': mustbeauthenticate,
+                    'mustbeauthenticated': mustbeauthenticated,
                 }
                 logger.info('Add the rule: %r' % endpoint)
             return function
@@ -159,14 +159,14 @@ class LongPolling(object):
                 session = session.get(session_id)
 
             if session:
-                if self.view_function[endpoint]['mustbeauthenticate']:
+                if self.view_function[endpoint]['mustbeauthenticated']:
                     session.assert_valid()
 
                 request.authenticate = True
                 request.context = session.context
                 request.uid = self.uid = session._uid
                 self.registry = self.registries.get(session._db)
-            elif self.view_function[endpoint]['mustbeauthenticate']:
+            elif self.view_function[endpoint]['mustbeauthenticated']:
                 raise AuthenticationError('No session found')
             else:
                 request.authenticate = False
