@@ -10,9 +10,9 @@ from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
 from openerp.tools import config
-from contextlib import contextmanager
 from psycopg2 import extensions, OperationalError
 from logging import getLogger
+from .postgresql import rollback_and_close
 
 
 logger = getLogger(__name__)
@@ -31,21 +31,6 @@ def get_timeout():
     return int(config.get('longpolling_timeout', '60'))
 
 
-@contextmanager
-def rollback_and_close(registry):
-    from gevent import sleep
-    try:
-        while CURSORLIMIT[registry.db_name] <= 0:
-            sleep(0.1)
-        CURSORLIMIT[registry.db_name] -= 1
-        cursor = registry.db.cursor(serialized=False)
-        yield cursor
-    finally:
-        cursor.rollback()
-        cursor.close()
-        CURSORLIMIT[registry.db_name] += 1
-
-
 class OpenERPObject(object):
 
     def __init__(self, registry, uid, model):
@@ -58,7 +43,7 @@ class OpenERPObject(object):
 
     def __getattr__(self, fname):
         def wrappers(*args, **kwargs):
-            with rollback_and_close(self.registry) as cr:
+            with rollback_and_close(self.registry, CURSORLIMIT) as cr:
                 return getattr(self.obj, fname)(cr, self.uid, *args, **kwargs)
         return wrappers
 
