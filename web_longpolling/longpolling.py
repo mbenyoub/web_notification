@@ -10,9 +10,8 @@ from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
 from openerp.tools import config
-from psycopg2 import extensions, OperationalError
 from logging import getLogger
-from .postgresql import rollback_and_close
+from .postgresql import rollback_and_close, patch
 
 
 logger = getLogger(__name__)
@@ -67,27 +66,10 @@ class LongPolling(object):
 
     def serve_forever(self, host, port, dbnames, maxcursor=2):
         """Load dbs and run gevent wsgi server"""
+        from gevent.pywsgi import WSGIServer
         from gevent import monkey
         monkey.patch_all()
-        import gevent_psycopg2
-        gevent_psycopg2.monkey_patch()
-        from gevent.pywsgi import WSGIServer
-        from gevent.socket import wait_read, wait_write
-
-        def gevent_wait_callback(conn, timeout=None):
-            """A wait callback useful to allow gevent to work with Psycopg."""
-            while 1:
-                state = conn.poll()
-                if state == extensions.POLL_OK:
-                    break
-                elif state == extensions.POLL_READ:
-                    wait_read(conn.fileno(), timeout=timeout)
-                elif state == extensions.POLL_WRITE:
-                    wait_write(conn.fileno(), timeout=timeout)
-                else:
-                    raise OperationalError("Bad result from poll: %r" % state)
-
-        extensions.set_wait_callback(gevent_wait_callback)
+        patch()
         self._longpolling_serve = True
         for db in dbnames:
             self.registries[db] = RegistryManager.get(db)
