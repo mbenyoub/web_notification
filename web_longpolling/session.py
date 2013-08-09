@@ -29,4 +29,9 @@ class OpenERPObject(object):
             return res
         return wrappers
 
+
+class OpenERPRegistry(object):
+
+    registries = {}  # {db: cls}
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
