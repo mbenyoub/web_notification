@@ -7,18 +7,12 @@ from psycopg2 import extensions, OperationalError
 
 
 @contextmanager
-def rollback_and_close(registry, CURSORLIMIT):
-    from gevent import sleep
+def rollback_and_close(cursor):
     try:
-        while CURSORLIMIT[registry.db_name] <= 0:
-            sleep(0.1)
-        CURSORLIMIT[registry.db_name] -= 1
-        cursor = registry.db.cursor(serialized=False)
         yield cursor
     finally:
         cursor.rollback()
         cursor.close()
-        CURSORLIMIT[registry.db_name] += 1
 
 
 def gevent_wait_callback(conn, timeout=None):

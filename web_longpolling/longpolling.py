@@ -11,13 +11,10 @@ from openerp.addons.web.session import AuthenticationError
 from openerp.modules.registry import RegistryManager
 from openerp.tools import config
 from logging import getLogger
-from .postgresql import rollback_and_close, patch
+from .session import OpenERPObject, CURSORLIMIT
 
 
 logger = getLogger(__name__)
-
-
-CURSORLIMIT = {}
 
 
 def get_path():
@@ -28,23 +25,6 @@ def get_path():
 
 def get_timeout():
     return int(config.get('longpolling_timeout', '60'))
-
-
-class OpenERPObject(object):
-
-    def __init__(self, registry, uid, model):
-        self.registry = registry
-        self.uid = uid
-        self.obj = registry.get(model)
-        # serialized = False => put the the isolation level
-        # READ_COMMITED, without it option, the other commit can not be
-        # used and we have always got the same result for each read
-
-    def __getattr__(self, fname):
-        def wrappers(*args, **kwargs):
-            with rollback_and_close(self.registry, CURSORLIMIT) as cr:
-                return getattr(self.obj, fname)(cr, self.uid, *args, **kwargs)
-        return wrappers
 
 
 class LongPolling(object):
@@ -69,6 +49,7 @@ class LongPolling(object):
         from gevent.pywsgi import WSGIServer
         from gevent import monkey
         monkey.patch_all()
+        from .postgresql import patch
         patch()
         self._longpolling_serve = True
         for db in dbnames:
