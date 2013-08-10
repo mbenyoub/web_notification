@@ -33,38 +33,46 @@ class LongPolling(object):
         self.view_function = {}
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
-        self.longpolling_timeout = get_timeout()
         self._longpolling_serve = False
-        self.longpolling_path = get_path()
-        self.uid = None
-        self.registry = None
-        self.registries = {}
 
-    def serve_forever(self, host, port, dbnames, maxcursor=2):
-        """Load dbs and run gevent wsgi server"""
-        from gevent.pywsgi import WSGIServer
+    def patch_all(self):
         from gevent import monkey
         monkey.patch_all()
         from .postgresql import patch
         patch()
-        self._longpolling_serve = True
-        for db in dbnames:
-            self.registries[db] = OpenERPRegistry.add(db, maxcursor)
 
+    def load_database(self, database, maxcursor=2):
+        self.current_database = database
+        r = OpenERPRegistry.add(database, maxcursor)
+        r.listen()
+        #TODO renotify
+        self.current_database = None
+
+    def load_databases(self, databases, maxcursor=2):
+        for db in databases:
+            self.load_database(db, maxcursor=maxcursor)
+
+    def serve_forever(self, host, port):
+        """Load dbs and run gevent wsgi server"""
+        from gevent.pywsgi import WSGIServer
         server = WSGIServer((host, port), self.application)
         logger.info("Start long polling server %r:%s", host, port)
         server.serve_forever()
 
-    def route(self, path='/', mode='json', mustbeauthenticated=True):
+    def route(self, path='/', mode='json', mustbeauthenticated=True,
+              adapter=None):
         assert path not in (False, None), "Bad route path: " + str(path)
         assert isinstance(path, str), "Path must be a string: " + str(path)
         assert path[0] == '/', "Path must begin by '/'"
         assert mode in ('json', 'http'), "Mode must be json or http: " + str(path)
         assert isinstance(mustbeauthenticated, bool)
+        if adapter:
+            assert adapter.format
+            assert adapter.get
 
         def wrapper(function):
-            if self._longpolling_serve:
-                realpath = self.longpolling_path + path
+            if self.current_database:
+                realpath = get_path() + path
                 endpoint = '%s:%s' % (function.__name__, realpath)
                 rule = Rule(realpath, endpoint=endpoint)
                 self.path_map.add(rule)
@@ -76,7 +84,7 @@ class LongPolling(object):
                     'function': function,
                     'mode': mode,
                     'mustbeauthenticated': mustbeauthenticated,
-                    'adapter': None,
+                    'adapter': adapter,
                 }
                 logger.info('Add the rule: %r' % endpoint)
             return function
@@ -89,8 +97,7 @@ class LongPolling(object):
 
     def dispatch_request(self, request):
         from gevent import Timeout
-        timeout = Timeout(self.longpolling_timeout)
-        timeout.start()
+        Timeout(get_timeout()).start()
         adapter = self.path_map.bind_to_environ(request.environ)
         try:
             endpoint, values = adapter.match()
