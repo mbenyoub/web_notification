@@ -8,15 +8,44 @@ from gevent import spawn, sleep
 from simplejson import loads
 
 
+class AbstractAdapter(object):
+
+    channel = None
+
+    def __init__(self, registry):
+        self.registry = registry
+        assert self.channel
+
+    def get(self, messages, *args, **kwargs):
+        """ Return the messageto get """
+        res = []
+        for m in messages:
+            res.append(m)
+        return res
+
+    def format(self, message, *args, **kwargs):
+        return message
+
+    def listen(self, *args, **kwargs):
+        while True:
+            received_messages = self.registry.received_message[self.channel]
+            messages = self.get(received_messages, *args, **kwargs)
+            if not messages:
+                continue
+            result = []
+            for message in messages:
+                self.registry.received_message[self.channel].remove(message)
+                result.append(self.format(message, *args, **kwargs))
+
+            return result
+
+
 class OpenERPObject(object):
 
     def __init__(self, registry, uid, model):
         self.registry = registry
         self.uid = uid
         self.obj = registry.registry.get(model)
-        # serialized = False => put the the isolation level
-        # READ_COMMITED, without it option, the other commit can not be
-        # used and we have always got the same result for each read
 
     def __getattr__(self, fname):
         def wrappers(*args, **kwargs):
@@ -67,5 +96,8 @@ class OpenERPRegistry(object):
                 sleep(0.1)
 
         spawn(get_listen)
+
+    def cursor(self):
+        return self.registry.db.cursor(serialized=False)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

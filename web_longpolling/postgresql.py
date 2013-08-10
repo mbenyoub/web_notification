@@ -15,7 +15,7 @@ def rollback_and_close(registry):
         sleep(0.1)
     try:
         registry.maxcursor -= 1
-        cursor = registry.registry.db.cursor(serialized=False)
+        cursor = registry.cursor()
         yield cursor
     finally:
         cursor.rollback()
