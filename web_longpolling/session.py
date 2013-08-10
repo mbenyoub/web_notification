@@ -45,4 +45,9 @@ class OpenERPRegistry(object):
         cls.registries[database] = r
         return r
 
+    @classmethod
+    def get(cls, database):
+        return cls.registries[database]
+
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
