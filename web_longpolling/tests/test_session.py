@@ -22,4 +22,10 @@ class TestOpenERPRegistry(TransactionCase):
         assert r.registry.db_name == self.cr.dbname
         assert r.maxcursor == 2
 
+    def test_get_openerpobject(self):
+        r = OpenERPRegistry.add(self.cr.dbname, 2)
+        user = r.get_openerpobject(self.uid, 'res.users')
+        assert user.search([])
+        assert r.maxcursor == 2
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

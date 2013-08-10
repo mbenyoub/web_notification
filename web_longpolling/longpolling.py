@@ -8,10 +8,9 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.contrib.sessions import FilesystemSessionStore
 from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
-from openerp.modules.registry import RegistryManager
 from openerp.tools import config
 from logging import getLogger
-from .session import OpenERPObject, CURSORLIMIT
+from .session import OpenERPRegistry
 
 
 logger = getLogger(__name__)
@@ -42,7 +41,7 @@ class LongPolling(object):
         self.registries = {}
 
     def get_openerp_object(self, model):
-        return OpenERPObject(self.registry, self.uid, model)
+        return self.registry.get_openerpobject(self.uid, model)
 
     def serve_forever(self, host, port, dbnames, maxcursor=2):
         """Load dbs and run gevent wsgi server"""
@@ -53,8 +52,7 @@ class LongPolling(object):
         patch()
         self._longpolling_serve = True
         for db in dbnames:
-            self.registries[db] = RegistryManager.get(db)
-            CURSORLIMIT[db] = maxcursor
+            self.registries[db] = OpenERPRegistry.add(db, maxcursor)
 
         server = WSGIServer((host, port), self.application)
         logger.info("Start long polling server %r:%s", host, port)
@@ -113,7 +111,7 @@ class LongPolling(object):
                 request.authenticate = True
                 request.context = session.context
                 request.uid = self.uid = session._uid
-                self.registry = self.registries.get(session._db)
+                self.registry = OpenERPRegistry.get(session._db)
             elif self.view_function[endpoint]['mustbeauthenticated']:
                 raise AuthenticationError('No session found')
             else:

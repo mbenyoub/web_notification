@@ -3,16 +3,22 @@
 from contextlib import contextmanager
 import gevent_psycopg2
 from gevent.socket import wait_read, wait_write
+from gevent import sleep
 from psycopg2 import extensions, OperationalError
 
 
 @contextmanager
-def rollback_and_close(cursor):
+def rollback_and_close(registry):
+    while registry.maxcursor <= 0:
+        sleep(0.1)
     try:
+        registry.maxcursor -= 1
+        cursor = registry.registry.db.cursor(serialized=False)
         yield cursor
     finally:
         cursor.rollback()
         cursor.close()
+        registry.maxcursor += 1
 
 
 def gevent_wait_callback(conn, timeout=None):
