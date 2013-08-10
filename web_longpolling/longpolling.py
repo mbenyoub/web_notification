@@ -10,7 +10,7 @@ from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.tools import config
 from logging import getLogger
-from .session import OpenERPRegistry
+from .session import OpenERPRegistry, OpenERPSession
 
 
 logger = getLogger(__name__)
@@ -39,9 +39,6 @@ class LongPolling(object):
         self.uid = None
         self.registry = None
         self.registries = {}
-
-    def get_openerp_object(self, model):
-        return self.registry.get_openerpobject(self.uid, model)
 
     def serve_forever(self, host, port, dbnames, maxcursor=2):
         """Load dbs and run gevent wsgi server"""
@@ -79,6 +76,7 @@ class LongPolling(object):
                     'function': function,
                     'mode': mode,
                     'mustbeauthenticated': mustbeauthenticated,
+                    'adapter': None,
                 }
                 logger.info('Add the rule: %r' % endpoint)
             return function
@@ -96,37 +94,15 @@ class LongPolling(object):
         adapter = self.path_map.bind_to_environ(request.environ)
         try:
             endpoint, values = adapter.match()
-            sid = request.cookies.get('sid')
-            session = None
-            if sid:
-                session = self.session_store.get(sid)
-            session_id = request.args.get('session_id')
-            if session and session_id:
-                session = session.get(session_id)
-
-            if session:
-                if self.view_function[endpoint]['mustbeauthenticated']:
-                    session.assert_valid()
-
-                request.authenticate = True
-                request.context = session.context
-                request.uid = self.uid = session._uid
-                self.registry = OpenERPRegistry.get(session._db)
-            elif self.view_function[endpoint]['mustbeauthenticated']:
-                raise AuthenticationError('No session found')
-            else:
-                request.authenticate = False
-                request.context = {}
-
-            def model(m):
-                return self.get_openerp_object(m)
-            request.model = model
+            route = self.view_function[endpoint]
+            session = OpenERPSession(
+                request, self.session_store, route['mustbeauthenticated'],
+                route['adapter'])
 
             values.update(loads(request.args.get('data')))
-            result = self.view_function[endpoint]['function'](
-                request, **values)
+            result = route['function'](session, **values)
 
-            if self.view_function[endpoint]['mode'] == 'json':
+            if route['mode'] == 'json':
                 result = dumps(result)
                 mimetype = 'application/json'
             else:

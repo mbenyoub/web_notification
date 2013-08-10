@@ -2,6 +2,7 @@
 
 from openerp.modules.registry import RegistryManager
 from openerp.addons.web_longpolling.notify import get_channel
+from openerp.addons.web.session import AuthenticationError
 from .postgresql import rollback_and_close, get_conn_and_cr
 from .postgresql import gevent_wait_callback
 from gevent import spawn, sleep
@@ -99,5 +100,50 @@ class OpenERPRegistry(object):
 
     def cursor(self):
         return self.registry.db.cursor(serialized=False)
+
+
+class OpenERPSession(object):
+
+    def __init__(self, request, session_store, mustbeauthenticated, adapter):
+        self.adapter = adapter
+        sid = request.cookies.get('sid')
+        session = None
+        if sid:
+            session = session_store.get(sid)
+        session_id = request.args.get('session_id')
+        if session and session_id:
+            session = session.get(session_id)
+        else:
+            session = None
+
+        self.authenticate = False
+        if session:
+            try:
+                session.assert_valid()
+                self.authenticate = True
+            except AuthenticationError:
+                if mustbeauthenticated:
+                    raise
+
+            self.context = session.context
+            self.uid = session._uid
+            self.registry = OpenERPRegistry.get(session._db)
+        elif mustbeauthenticated:
+            raise AuthenticationError('No session found')
+        else:
+            self.context = {}
+            self.uid = None
+            self.registry = None
+
+    def model(self, openerpmodel):
+        if not self.authenticate:
+            raise AuthenticationError('Controler must be authenticate')
+        return self.registry.get_openerpobject(self.uid, openerpmodel)
+
+    def listen(self, *args, **kwargs):
+        assert self.adapter
+        if not self.authenticate:
+            raise AuthenticationError('Controler must be authenticate')
+        return self.adapter(self.registry).listen(*args, **kwargs)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
