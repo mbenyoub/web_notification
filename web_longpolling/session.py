@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from openerp.modules.registry import RegistryManager
-from .postgresql import rollback_and_close
+from openerp.addons.web_longpolling.notify import get_channel
+from .postgresql import rollback_and_close, get_conn_and_cr
+from .postgresql import gevent_wait_callback
+from gevent import spawn, sleep
+from simplejson import loads
 
 
 class OpenERPObject(object):
@@ -28,6 +32,7 @@ class OpenERPRegistry(object):
     def __init__(self, database, maxcursor):
         self.registry = RegistryManager.get(database)
         self.maxcursor = maxcursor
+        self.received_message = {}
 
     @classmethod
     def add(cls, database, maxcursor):
@@ -42,5 +47,25 @@ class OpenERPRegistry(object):
     def get_openerpobject(self, uid, model):
         return OpenERPObject(self, uid, model)
 
+    def listen(self):
+        self.maxcursor -= 1
+        conn, cr = get_conn_and_cr(self.registry.db_name)
+        cr.execute('Listen ' + get_channel() + ';')
+
+        def get_listen():
+            while True:
+                gevent_wait_callback(cr.connection)
+                while conn.notifies:
+                    notify = conn.notifies.pop()
+                    payload = loads(notify.payload)
+                    channel = payload['channel']
+                    del payload['channel']
+                    if self.received_message.get(channel) is None:
+                        self.received_message[channel] = []
+                    self.received_message[channel] += [payload]
+
+                sleep(0.1)
+
+        spawn(get_listen)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

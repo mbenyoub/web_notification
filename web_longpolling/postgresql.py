@@ -4,7 +4,9 @@ from contextlib import contextmanager
 import gevent_psycopg2
 from gevent.socket import wait_read, wait_write
 from gevent import sleep
-from psycopg2 import extensions, OperationalError
+from psycopg2 import extensions, OperationalError, connect
+from openerp.sql_db import dsn
+from psycopg2.psycopg1 import cursor as psycopg1cursor
 
 
 @contextmanager
@@ -38,5 +40,12 @@ def gevent_wait_callback(conn, timeout=None):
 def patch():
     gevent_psycopg2.monkey_patch()
     extensions.set_wait_callback(gevent_wait_callback)
+
+
+def get_conn_and_cr(database):
+    c = connect(dsn=dsn(database), connection_factory=extensions.connection)
+    c.set_isolation_level(extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+    cr = c.cursor(cursor_factory=psycopg1cursor)
+    return c, cr
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
