@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from openerp.modules.registry import RegistryManager
 from .postgresql import rollback_and_close
 from gevent import sleep
 
@@ -33,5 +34,15 @@ class OpenERPObject(object):
 class OpenERPRegistry(object):
 
     registries = {}  # {db: cls}
+
+    def __init__(self, database, maxcursor):
+        self.registry = RegistryManager.get(database)
+        self.maxcursor = maxcursor
+
+    @classmethod
+    def add(cls, database, maxcursor):
+        r = cls(database, maxcursor)
+        cls.registries[database] = r
+        return r
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
