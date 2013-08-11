@@ -33,7 +33,7 @@ class LongPolling(object):
         self.view_function = {}
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
-        self._longpolling_serve = False
+        self.current_database = False
 
     def patch_all(self):
         from gevent import monkey
@@ -96,6 +96,7 @@ class LongPolling(object):
         return response(environ, start_response)
 
     def dispatch_request(self, request):
+        #FIXME Timeout traceback
         from gevent import Timeout
         Timeout(get_timeout()).start()
         adapter = self.path_map.bind_to_environ(request.environ)

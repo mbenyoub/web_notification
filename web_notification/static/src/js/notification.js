@@ -13,7 +13,6 @@ openerp.web_notification = function (instance) {
                 this.lg_notification.start_longpolling(
                     this.session, '/notification', {},
                     function (notifications) {
-                        var deferred = $.Deferred();
                         _(notifications).each( function(notification) {
                             if (notification.type == 'warn'){
                                 self.do_warn(notification.title, 
@@ -27,12 +26,6 @@ openerp.web_notification = function (instance) {
                                 }
                             }
                         });
-                        var notif_ids = _.pluck(notifications, 'id');
-                        notif.call('write', [notif_ids, {mode: 'delivery'}])
-                            .then(function () {
-                                deferred.resolve();
-                            });
-                        return deferred;
                     }
                 );
             }

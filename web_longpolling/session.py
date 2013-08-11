@@ -25,13 +25,18 @@ class AbstractAdapter(object):
         return res
 
     def format(self, message, *args, **kwargs):
-        return message
+        return message['values']
 
     def listen(self, *args, **kwargs):
+        #FIXME replace sleep by switch to other coroutine
         while True:
-            received_messages = self.registry.received_message[self.channel]
+            received_messages = self.registry.received_message.get(self.channel, [])
+            if not received_messages:
+                sleep(0.1)
+                continue
             messages = self.get(received_messages, *args, **kwargs)
             if not messages:
+                sleep(0.1)
                 continue
             result = []
             for message in messages:
@@ -84,6 +89,7 @@ class OpenERPRegistry(object):
 
         def get_listen():
             while True:
+                #FIXME wait must be blocking
                 gevent_wait_callback(cr.connection)
                 while conn.notifies:
                     notify = conn.notifies.pop()
