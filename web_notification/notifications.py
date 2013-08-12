@@ -3,35 +3,42 @@
 from openerp.osv import osv, fields
 
 
-class MailNotification(osv.Model):
-    _name = 'mail.notification'
+class IrNotification(osv.Model):
+    _name = 'ir.notification'
+    _description = 'OpenERP Notification'
     _inherit = [
-        'mail.notification',
         'longpolling.notification',
     ]
     _longpolling_channel = 'notification'
 
     _columns = {
-        'mode': fields.selection(
-            [('notify', 'Notification'), ('warn', 'Warning')], 'Mode'),
-        'force_notification': fields.boolean('Force notification'),
+        'mode': fields.selection([
+            ('notify', 'Notification'), ('warn', 'Warning')], 'Mode',
+            required=True),
+        'subject': fields.char('Subject', size=64, required=True),
+        'body': fields.html('Body', required=True),
+        'user_ids': fields.many2many('res.users', 'user_notified_rel',
+                                     'notify_id', 'user_id', 'Users'),
     }
 
     _defaults = {
         'mode': 'notify',
-        'force_notification': False,
     }
 
     def create(self, cr, uid, values, context=None):
-        id = super(MailNotification, self).create(
+        id = super(IrNotification, self).create(
             cr, uid, values, context=context)
-        message = {
-            'to_id': uid,
-            'title': 'Un titre',
-            'msg': 'Un message',
-            'sticky': False,
-        }
-        self.notify(cr, uid, **message)
+        self.notify(cr, uid, **values)
         return id
+
+    def notify(self, cr, uid, user_ids, **values):
+        for user in self.pool.get('res.users').read(cr, uid, user_ids,
+                                                    ['notification_sticky']):
+            message = values.copy()
+            message.update({
+                'to_id': user['id'],
+                'sticky': user['notification_sticky'],
+            })
+            super(IrNotification, self).notify(cr, uid, **message)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -23,7 +23,7 @@ class LongPollingNotification(osv.AbstractModel):
             'uid': uid,
             'values': kwargs,
         })
-        cursor.execute('NOTIFY ' + get_channel() + ', %s;', message)
+        cursor.execute('NOTIFY ' + get_channel() + ', %s;', (message,))
         cursor.commit()
         cursor.close()
 

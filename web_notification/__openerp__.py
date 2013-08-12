@@ -40,6 +40,7 @@ Display Notification for user
         'web_longpolling',
     ],
     'data': [
+        'security/ir.model.access.csv',
         'base.xml',
     ],
     'js': [

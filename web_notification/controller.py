@@ -6,7 +6,7 @@ from openerp.addons.web_longpolling.session import AbstractAdapter
 #POLL_SLEEP = 0.5
 
 
-class NotificationAdapteur(AbstractAdapter):
+class NotificationAdapter(AbstractAdapter):
     channel = 'notification'
 
     def get(self, messages, uid):
@@ -17,7 +17,7 @@ class NotificationAdapteur(AbstractAdapter):
         return res
 
 
-@longpolling.route('/notification', adapter=NotificationAdapteur)
+@longpolling.route('/notification', adapter=NotificationAdapter)
 def get_notifications(session, **kwargs):
     return session.listen(session.uid)
 

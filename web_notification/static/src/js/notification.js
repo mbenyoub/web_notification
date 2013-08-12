@@ -14,14 +14,14 @@ openerp.web_notification = function (instance) {
                     this.session, '/notification', {},
                     function (notifications) {
                         _(notifications).each( function(notification) {
-                            if (notification.type == 'warn'){
-                                self.do_warn(notification.title, 
-                                             notification.msg,
+                            if (notification.mode == 'warn'){
+                                self.do_warn(notification.subject, 
+                                             notification.body,
                                              notification.sticky);
                             }else{
-                                if (notification.type == 'notify'){
-                                    self.do_notify(notification.title, 
-                                                   notification.msg,
+                                if (notification.mode == 'notify'){
+                                    self.do_notify(notification.subject, 
+                                                   notification.body,
                                                    notification.sticky);
                                 }
                             }

@@ -21,20 +21,12 @@ class ResUsers(osv.Model):
 
     def post_notification(self, cr, uid, to_user_id, title='', message='',
                           mode='notify', context=None):
-        partner_id = self.pool.get('res.users').read(
-            cr, uid, [to_user_id], ['partner_id'], context=context,
-            load="_classic_write")[0]['partner_id']
         vals = {
             'subject': title,
             'body': message,
-            'type': 'notification',
-            'partner_ids': [(6, 0, [partner_id])],
-            'notification_ids': [(0, 0, {
-                'partner_id': partner_id,
-                'mode': mode,
-                'force_notification': True,
-            })],
+            'user_ids': [to_user_id],
+            'mode': mode,
         }
-        self.pool.get('mail.message').create(cr, uid, vals, context=context)
+        self.pool.get('ir.notification').create(cr, uid, vals)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -18,31 +18,32 @@ class Adapter(AbstractAdapter):
 class TestOpenERPRegistry(TransactionCase):
 
     def tearDown(self):
+        super(TestOpenERPRegistry, self).tearDown()
         OpenERPRegistry.registries = {}
 
+    def setUp(self):
+        super(TestOpenERPRegistry, self).setUp()
+        self.r = OpenERPRegistry.add(self.cr.dbname, 2)
+
     def test_add(self):
-        r = OpenERPRegistry.add(self.cr.dbname, 2)
-        assert r.registries[self.cr.dbname] == r
-        assert r.registry.db_name == self.cr.dbname
-        assert r.maxcursor == 2
+        assert self.r.registries[self.cr.dbname] == self.r
+        assert self.r.registry.db_name == self.cr.dbname
+        assert self.r.maxcursor == 2
 
     def test_get(self):
-        OpenERPRegistry.add(self.cr.dbname, 2)
         r = OpenERPRegistry.get(self.cr.dbname)
         assert r.registries[self.cr.dbname] == r
         assert r.registry.db_name == self.cr.dbname
         assert r.maxcursor == 2
 
     def test_get_openerpobject(self):
-        r = OpenERPRegistry.add(self.cr.dbname, 2)
-        user = r.get_openerpobject(self.uid, 'res.users')
+        user = self.r.get_openerpobject(self.uid, 'res.users')
         assert user.search([])
-        assert r.maxcursor == 2
+        assert self.r.maxcursor == 2
 
     def test_listen(self):
         # use sleep to switch to other coroutine
-        r = OpenERPRegistry.add(self.cr.dbname, 2)
-        r.listen()
+        self.r.listen()
         message = dumps({
             'channel': 'test1',
             'uid': self.uid,
@@ -62,20 +63,18 @@ class TestOpenERPRegistry(TransactionCase):
         self.cr.execute('NOTIFY ' + get_channel() + ', %s;', (message,))
         self.cr.commit()
         sleep(0.1)
-        assert r.received_message['test1']
-        assert r.received_message['test2']
-        assert len(r.received_message['test2']) == 2
+        assert self.r.received_message['test1']
+        assert self.r.received_message['test2']
+        assert len(self.r.received_message['test2']) == 2
 
     def test_cursor(self):
-        r = OpenERPRegistry.add(self.cr.dbname, 2)
-        cr = r.cursor()
+        cr = self.r.cursor()
         cr.execute('select * from res_users where id=%s', (self.uid,))
         assert cr.fetchone()
         cr.close()
 
     def test_adapter(self):
-        r = OpenERPRegistry.add(self.cr.dbname, 2)
-        r.listen()
+        self.r.listen()
         message = dumps({
             'channel': 'test',
             'uid': self.uid,
@@ -87,9 +86,9 @@ class TestOpenERPRegistry(TransactionCase):
         self.cr.execute('NOTIFY ' + get_channel() + ', %s;', (message,))
         self.cr.commit()
         sleep(0)
-        messages = Adapter(r).listen()
+        messages = Adapter(self.r).listen()
         assert messages
         assert messages[0]['uid'] == self.uid
-        assert not r.received_message['test']
+        assert not self.r.received_message['test']
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -11,6 +11,9 @@
         'base',
         'web',
     ],
+    'data': [
+        'security/ir.model.access.csv',
+    ],
     'js': [
         'static/src/js/longpolling.js',
     ],
