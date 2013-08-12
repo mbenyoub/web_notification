@@ -36,7 +36,6 @@ Display Notification for user
     'depends': [
         'base',
         'web',
-        'mail',
         'web_longpolling',
     ],
     'data': [
