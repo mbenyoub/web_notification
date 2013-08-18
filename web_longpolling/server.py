@@ -24,6 +24,7 @@ if __name__ == '__main__':
         dbs = [config.get('db_name')]
     longpolling.patch_all()
     longpolling.load_databases(dbs, int(args.maxcursor))
+    longpolling.run_services()
     longpolling.serve_forever(args.interface, int(args.port))
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

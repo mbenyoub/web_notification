@@ -149,4 +149,18 @@ class OpenERPSession(object):
             raise AuthenticationError('Controler must be authenticate')
         return self.adapter(self.registry).listen(*args, **kwargs)
 
+
+class OpenERPService(object):
+
+    def __init__(self, registry, adapter):
+        self.registry = registry
+        self.adapter = adapter
+
+    def model(self, openerpmodel):
+        return self.registry.get_openerpobject(self.uid, openerpmodel)
+
+    def listen(self, *args, **kwargs):
+        assert self.adapter
+        return self.adapter(self.registry).listen(*args, **kwargs)
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

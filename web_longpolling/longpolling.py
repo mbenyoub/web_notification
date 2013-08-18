@@ -10,7 +10,7 @@ from openerp.addons.web.http import session_path
 from openerp.addons.web.session import AuthenticationError
 from openerp.tools import config
 from logging import getLogger
-from .session import OpenERPRegistry, OpenERPSession
+from .session import OpenERPRegistry, OpenERPSession, OpenERPService
 
 
 logger = getLogger(__name__)
@@ -34,6 +34,7 @@ class LongPolling(object):
         path = session_path()
         self.session_store = FilesystemSessionStore(path)
         self.current_database = False
+        self.services = {}
 
     def patch_all(self):
         from gevent import monkey
@@ -89,6 +90,50 @@ class LongPolling(object):
                 logger.info('Add the rule: %r' % endpoint)
             return function
         return wrapper
+
+    def service(self, module, adapter=None):
+        assert isinstance(module, str)
+        assert module
+        if adapter:
+            assert adapter.format
+            assert adapter.get
+
+        def wrapper(function):
+            if self.current_database:
+                if not self.services.get(self.current_database):
+                    self.services[self.current_database] = {
+                        module: [(function, adapter)]}
+                elif not self.services[self.current_database].get(module):
+                    self.services[self.current_database][module] = [
+                        (function, adapter)]
+                else:
+                    self.services[self.current_database][module].append(
+                        (function, adapter))
+            return function
+        return wrapper
+
+    def run_services(self):
+        from gevent import spawn, sleep
+
+        def run(service, function):
+            while 1:
+                function(service)
+                sleep(0)
+
+        for dbname, modules in self.services.items():
+            db = OpenERPRegistry.get(dbname)
+            module_obj = db.get_openerpobject(1, 'ir.module.module')
+            for module, functions in modules.items():
+                domain = [
+                    ('name', '=', module),
+                    ('state', '=', 'installed'),
+                ]
+                if module_obj.search(domain):
+                    for function, adapter in functions:
+                        service = OpenERPService(db, adapter)
+                        spawn(run, service, function)
+                        logger.info('Add the service %r:%r' % (
+                            module, function.__name__))
 
     def application(self, environ, start_response):
         request = Request(environ)
