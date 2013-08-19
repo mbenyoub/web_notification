@@ -15,7 +15,7 @@ class MessageAdapter(AbstractAdapter):
         return res
 
 
-@longpolling.route('/im', adapter=MessageAdapter)
+@longpolling.route('/im/message', adapter=MessageAdapter)
 def receive_message(session, **kwargs):
     context = session.context
     im_user_obj = session.model('im.user')

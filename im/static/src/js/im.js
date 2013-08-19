@@ -200,7 +200,7 @@ openerp.im = function(instance) {
             var self = this;
             mess = new instance.web.Model('im.message');
             this.lg_im.start_longpolling(
-                this.__parentedParent.session, '/im', {},
+                this.__parentedParent.session, '/im/message', {},
                 function (result) {
                     var deferred = $.Deferred();
                     var messages = result.messages;
