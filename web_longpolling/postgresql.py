@@ -4,20 +4,25 @@ from contextlib import contextmanager
 import gevent_psycopg2
 from gevent.socket import wait_read, wait_write
 from gevent import sleep
-from psycopg2 import extensions, OperationalError, connect
+from psycopg2 import extensions, OperationalError, connect, Error
 from openerp.sql_db import dsn
 
 
 @contextmanager
-def rollback_and_close(registry):
+def openerpCursor(registry, autocommit=False):
     while registry.maxcursor <= 0:
         sleep(0.1)
     try:
         registry.maxcursor -= 1
         cursor = registry.cursor()
         yield cursor
-    finally:
+    except Error:
         cursor.rollback()
+    finally:
+        if autocommit:
+            cursor.commit()
+        else:
+            cursor.rollback()
         cursor.close()
         registry.maxcursor += 1
 

@@ -91,4 +91,14 @@ class TestOpenERPRegistry(TransactionCase):
         assert messages[0]['uid'] == self.uid
         assert not self.r.received_message['test']
 
+    def test_notify(self):
+        self.r.listen()
+        sleep(0.1)
+        self.r.notify('test', self.uid, uid2=self.uid)
+        sleep(0)
+        messages = Adapter(self.r).listen()
+        assert messages
+        assert messages[0]['uid2'] == self.uid
+        assert not self.r.received_message['test']
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

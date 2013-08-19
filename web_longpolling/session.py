@@ -3,10 +3,10 @@
 from openerp.modules.registry import RegistryManager
 from openerp.addons.web_longpolling.notify import get_channel
 from openerp.addons.web.session import AuthenticationError
-from .postgresql import rollback_and_close, get_conn_and_cr
+from .postgresql import openerpCursor, get_conn_and_cr
 from .postgresql import gevent_wait_callback
 from gevent import spawn, sleep
-from simplejson import loads
+from simplejson import loads, dumps
 
 
 class AbstractAdapter(object):
@@ -46,14 +46,15 @@ class AbstractAdapter(object):
 
 class OpenERPObject(object):
 
-    def __init__(self, registry, uid, model):
+    def __init__(self, registry, uid, model, autocommit):
         self.registry = registry
         self.uid = uid
         self.obj = registry.registry.get(model)
+        self.autocommit = autocommit
 
     def __getattr__(self, fname):
         def wrappers(*args, **kwargs):
-            with rollback_and_close(self.registry) as cr:
+            with openerpCursor(self.registry, self.autocommit) as cr:
                 return getattr(self.obj, fname)(cr, self.uid, *args, **kwargs)
         return wrappers
 
@@ -77,8 +78,8 @@ class OpenERPRegistry(object):
     def get(cls, database):
         return cls.registries[database]
 
-    def get_openerpobject(self, uid, model):
-        return OpenERPObject(self, uid, model)
+    def get_openerpobject(self, uid, model, autocommit=False):
+        return OpenERPObject(self, uid, model, autocommit)
 
     def listen(self):
         self.maxcursor -= 1
@@ -103,6 +104,16 @@ class OpenERPRegistry(object):
 
     def cursor(self):
         return self.registry.db.cursor(serialized=False)
+
+    def notify(self, channel, uid, **kwargs):
+        with openerpCursor(self, True) as cr:
+            message = dumps({
+                'channel': channel,
+                'uid': uid,
+                'values': kwargs,
+            })
+            cr.execute('NOTIFY ' + get_channel() + ', %s;', (message,))
+        return True
 
 
 class OpenERPSession(object):
@@ -149,6 +160,11 @@ class OpenERPSession(object):
             raise AuthenticationError('Controler must be authenticate')
         return self.adapter(self.registry).listen(*args, **kwargs)
 
+    def notify(self, channel, **kwargs):
+        if not self.authenticate:
+            raise AuthenticationError('Controler must be authenticate')
+        return self.registry.notify(channel, self.uid, **kwargs)
+
 
 class OpenERPService(object):
 
@@ -157,10 +173,14 @@ class OpenERPService(object):
         self.adapter = adapter
 
     def model(self, openerpmodel):
-        return self.registry.get_openerpobject(self.uid, openerpmodel)
+        return self.registry.get_openerpobject(self.uid, openerpmodel,
+                                               autocommit=True)
 
     def listen(self, *args, **kwargs):
         assert self.adapter
         return self.adapter(self.registry).listen(*args, **kwargs)
+
+    def notify(self, channel, uid, **kwargs):
+        return self.registry.notify(channel, uid, **kwargs)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
