@@ -115,6 +115,14 @@ class OpenERPRegistry(object):
             cr.execute('NOTIFY ' + get_channel() + ', %s;', (message,))
         return True
 
+    def renotify(self):
+        model_obj = self.get_openerpobject(1, 'ir.model')
+        m_ids = model_obj.search([])
+        for m in model_obj.read(m_ids, ['model']):
+            obj = self.get_openerpobject(1, m['model'], autocommit=True)
+            if hasattr(obj.obj, 'renotify'):
+                obj.renotify()
+
 
 class OpenERPSession(object):
 
@@ -155,7 +163,8 @@ class OpenERPSession(object):
         return self.registry.get_openerpobject(self.uid, openerpmodel)
 
     def listen(self, *args, **kwargs):
-        assert self.adapter
+        if not self.adapter:
+            raise Exception("No Adapter defined for this listen action")
         if not self.authenticate:
             raise AuthenticationError('Controler must be authenticate')
         return self.adapter(self.registry).listen(*args, **kwargs)
@@ -177,7 +186,8 @@ class OpenERPService(object):
                                                autocommit=True)
 
     def listen(self, *args, **kwargs):
-        assert self.adapter
+        if not self.adapter:
+            raise Exception("No Adapter defined for this listen action")
         return self.adapter(self.registry).listen(*args, **kwargs)
 
     def notify(self, channel, uid, **kwargs):

@@ -46,7 +46,7 @@ class LongPolling(object):
         self.current_database = database
         r = OpenERPRegistry.add(database, maxcursor)
         r.listen()
-        #TODO renotify
+        r.renotify()
         self.current_database = None
 
     def load_databases(self, databases, maxcursor=2):

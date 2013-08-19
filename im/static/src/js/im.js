@@ -205,11 +205,11 @@ openerp.im = function(instance) {
                     var deferred = $.Deferred();
                     var messages = result.messages;
                     var user_id = result.user_id;
-                    var status = result.status;
-                    _.each(status, function(el) {
-                        if (self.get_user(el.id))
-                            self.get_user(el.id).set(el);
-                    });
+                    //var status = result.status;
+                    //_.each(status, function(el) {
+                        //if (self.get_user(el.id))
+                            //self.get_user(el.id).set(el);
+                    //});
                     var user_ids = _.union(
                         _.pluck(messages, 'from_id'),
                         _.pluck(messages, 'to_id'));

@@ -22,7 +22,7 @@
 
 import openerp
 from openerp.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
-import datetime
+from datetime import datetime, timedelta
 from openerp.osv import osv, fields
 from openerp.addons.web_longpolling.longpolling import get_timeout
 import logging
@@ -34,6 +34,10 @@ DISCONNECTION_TIMER = get_timeout() + 5
 
 class im_message(osv.Model):
     _name = 'im.message'
+    _inherit = [
+        'longpolling.notification',
+    ]
+    _longpolling_channel = 'im_message'
 
     _order = "date"
 
@@ -49,32 +53,22 @@ class im_message(osv.Model):
     }
 
     _defaults = {
-        'date': lambda *args: datetime.datetime.now().strftime(
-            DEFAULT_SERVER_DATETIME_FORMAT),
         'read_by_from': False,
         'read_by_to': False,
     }
 
-    def get_messages(self, cr, uid, last=None, context=None):
-        users = self.pool.get("im.user")
-        my_id = users.get_by_user_id(cr, uid, uid, context=context)["id"]
-        domain = [
-            '|',
-            '&', ('from_id', '=', my_id), ('read_by_from', '=', False),
-            '&', ('to_id', '=', my_id), ('read_by_to', '=', False),
-        ]
-        mess_ids = self.search(
-            cr, openerp.SUPERUSER_ID, domain, context=context)
-        mess = self.read(cr, openerp.SUPERUSER_ID, mess_ids,
-                         ["id", "message", "from_id", 'to_id', "date"],
-                         load='_classic_write', context=context)
-
-        return mess
-
     def post(self, cr, uid, message, to_user_id, context=None):
         my_id = self.pool.get('im.user').get_by_user_id(cr, uid, uid)["id"]
-        val = {"message": message, 'from_id': my_id, 'to_id': to_user_id}
-        self.create(cr, openerp.SUPERUSER_ID, val, context=context)
+        val = {
+            "message": message,
+            'from_id': my_id,
+            'to_id': to_user_id,
+            'date': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+        }
+        message_id = self.create(cr, openerp.SUPERUSER_ID, val, context=context)
+        val['id'] = message_id
+        self.notify(cr, uid, forid=my_id, **val)
+        self.notify(cr, uid, forid=to_user_id, **val)
         return True
 
     def received(self, cr, uid, ids, user_id, context=None):
@@ -82,6 +76,9 @@ class im_message(osv.Model):
             cr, uid, user_id, context=context)
         todo = [('from_id', 'read_by_from'), ('to_id', 'read_by_to')]
         for d, v in todo:
+            print d, v
+            print user_id
+            print ids
             domain = [
                 ('id', 'in', ids),
                 (d, '=', user_id),
@@ -90,6 +87,29 @@ class im_message(osv.Model):
                 cr, openerp.SUPERUSER_ID, domain, context=context)
             self.write(
                 cr, openerp.SUPERUSER_ID, mess_ids, {v: True}, context=context)
+
+        return True
+
+    def renotify(self, cr, uid, context=None):
+        domain = [
+            '|',
+            ('read_by_from', '=', False),
+            ('read_by_to', '=', False),
+        ]
+        mess_ids = self.search(
+            cr, openerp.SUPERUSER_ID, domain, context=context)
+        for this in self.read(cr, openerp.SUPERUSER_ID, mess_ids,
+                              ['id', 'message', 'from_id', 'to_id', 'date',
+                               'read_by_from', 'read_by_to'],
+                              load='_classic_write', context=context):
+            read_by_from = this['read_by_from']
+            del this['read_by_from']
+            read_by_to = this['read_by_to']
+            del this['read_by_to']
+            if not read_by_from:
+                self.notify(cr, uid, forid=this['from_id'], **this)
+            if not read_by_to:
+                self.notify(cr, uid, forid=this['to_id'], **this)
 
         return True
 
@@ -105,11 +125,11 @@ class im_user(osv.Model):
 
     def _im_status(self, cr, uid, ids, something, something_else, context=None):
         res = {}
-        current = datetime.datetime.now()
-        delta = datetime.timedelta(0, DISCONNECTION_TIMER)
+        current = datetime.now()
+        delta = timedelta(0, DISCONNECTION_TIMER)
         data = self.read(cr, openerp.SUPERUSER_ID, ids, ["im_last_status_update"], context=context)
         for obj in data:
-            last_update = datetime.datetime.strptime(
+            last_update = datetime.strptime(
                 obj["im_last_status_update"], DEFAULT_SERVER_DATETIME_FORMAT)
             res[obj["id"]] = (last_update + delta) > current
 
@@ -123,7 +143,7 @@ class im_user(osv.Model):
 
     def im_connect(self, cr, uid, id, context=None):
         vals = {
-            "im_last_status_update": datetime.datetime.now().strftime(
+            "im_last_status_update": datetime.now().strftime(
                 DEFAULT_SERVER_DATETIME_FORMAT),
         }
         self.write(cr, openerp.SUPERUSER_ID, id, vals, context=context)
@@ -177,6 +197,6 @@ class im_user(osv.Model):
     }
 
     _defaults = {
-        'im_last_status_update': lambda *args: datetime.datetime.now(
+        'im_last_status_update': lambda *args: datetime.now(
         ).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
     }

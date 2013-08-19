@@ -1,34 +1,29 @@
 # -*- coding: utf-8 -*-
 
-from openerp.addons.web_longpolling.longpolling import longpolling, get_timeout
-from datetime import datetime as dt
-
-POLL_SLEEP = 0.25
-POLL_TIMEOUT = get_timeout() - 5
-assert POLL_TIMEOUT > 0
+from openerp.addons.web_longpolling.longpolling import longpolling
+from openerp.addons.web_longpolling.session import AbstractAdapter
 
 
-@longpolling.route('/im')
-def receive(request, **kwargs):
-    from gevent import sleep
-    start = dt.now()
-    context = request.context
-    im_user_obj = request.model('im.user')
-    im_message_obj = request.model('im.message')
-    message_received = []
-    now = dt.now()
-    while True:
-        message_received = im_message_obj.get_messages(context=context)
-        now = dt.now()
-        if (now - start).seconds > POLL_TIMEOUT or message_received:
-            break
-        sleep(POLL_SLEEP)
+class MessageAdapter(AbstractAdapter):
+    channel = 'im_message'
 
-    users_status = im_user_obj.get_users_status(context=context)
-    my_id = im_user_obj.get_by_user_id(request.uid, context=context)
+    def get(self, messages, uid):
+        res = []
+        for m in messages:
+            if m['values']['forid'] == uid:
+                res.append(m)
+        return res
+
+
+@longpolling.route('/im', adapter=MessageAdapter)
+def receive_message(session, **kwargs):
+    context = session.context
+    im_user_obj = session.model('im.user')
+    my_id = im_user_obj.get_by_user_id(session.uid, context=context)
+    session.notify('im_user', state='connected', user_id=my_id, forservice=True)
+    message_received = session.listen(my_id['id'])
     return {
         'user_id': my_id,
-        'status': users_status,
         'messages': message_received,
     }
 
