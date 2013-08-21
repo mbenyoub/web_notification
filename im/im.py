@@ -22,7 +22,7 @@
 
 import openerp
 from openerp.tools.misc import DEFAULT_SERVER_DATETIME_FORMAT
-from datetime import datetime, timedelta
+from datetime import datetime
 from openerp.osv import osv, fields
 from openerp.addons.web_longpolling.longpolling import get_timeout
 import logging
@@ -111,37 +111,16 @@ class im_message(osv.Model):
 
 class im_user(osv.Model):
     _name = "im.user"
-
-    def get_users_status(self, cr, uid, context=None):
-        ids = self.search(cr, openerp.SUPERUSER_ID, [('user', '!=', uid)],
-                          context=context)
-        return self.read(cr, openerp.SUPERUSER_ID, ids, ['im_status'],
-                         context=context)
-
-    def _im_status(self, cr, uid, ids, something, something_else, context=None):
-        res = {}
-        current = datetime.now()
-        delta = timedelta(0, DISCONNECTION_TIMER)
-        data = self.read(cr, openerp.SUPERUSER_ID, ids, ["im_last_status_update"], context=context)
-        for obj in data:
-            last_update = datetime.strptime(
-                obj["im_last_status_update"], DEFAULT_SERVER_DATETIME_FORMAT)
-            res[obj["id"]] = (last_update + delta) > current
-
-        return res
+    _inherit = [
+        'longpolling.notification',
+    ]
+    _longpolling_channel = 'im_user'
 
     def search_users(self, cr, uid, domain, fields, limit, context=None):
         # do not user openerp.SUPERUSER_ID, reserved to normal users
         found = self.pool.get('res.users').search(cr, uid, domain, limit=limit, context=context)
         found = self.get_by_user_ids(cr, uid, found, context=context)
         return self.read(cr, uid, found, fields, context=context)
-
-    def im_connect(self, cr, uid, id, context=None):
-        vals = {
-            "im_last_status_update": datetime.now().strftime(
-                DEFAULT_SERVER_DATETIME_FORMAT),
-        }
-        self.write(cr, openerp.SUPERUSER_ID, id, vals, context=context)
 
     def get_by_user_id(self, cr, uid, user_id, context=None):
         ids = self.get_by_user_ids(cr, uid, [user_id], context=context)
@@ -187,11 +166,15 @@ class im_user(osv.Model):
             "res.users", string="User", select=True, ondelete='cascade'),
         'im_last_status_update': fields.datetime(
             string="Instant Messaging Last Status Update"),
-        'im_status': fields.function(
-            _im_status, string="Instant Messaging Status", type='boolean'),
+        'im_status': fields.boolean('Instant Messaging Status'),
     }
 
-    _defaults = {
-        'im_last_status_update': lambda *args: datetime.now(
-        ).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-    }
+    def connect(self, cr, uid, context=None):
+        my_id = self.get_by_user_id(cr, uid, uid, context=context)
+        self.notify(cr, uid, im_status=True, user_id=my_id, forservice=True)
+
+    def disconnect(self, cr, uid, context=None):
+        my_id = self.get_by_user_id(cr, uid, uid, context=context)
+        self.notify(cr, uid, im_status=False, user_id=my_id, forservice=True)
+
+# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

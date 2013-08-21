@@ -21,6 +21,18 @@ openerp.im = function(instance) {
             return this._super.apply(this, arguments);
         },
     });
+    instance.web.WebClient.include({ 
+        show_application: function() {
+            this._super();
+            var users = new instance.web.Model("im.user");
+            users.call("connect", [], {context:new instance.web.CompoundContext()});
+        },
+        on_logout: function() { 
+            var users = new instance.web.Model("im.user");
+            users.call("disconnect", [], {context:new instance.web.CompoundContext()});
+            this._super();
+        },
+    });
 
     instance.im.ImTopButton = instance.web.Widget.extend({
         template:'ImTopButton',
@@ -194,22 +206,18 @@ openerp.im = function(instance) {
             this.users_cache = {};
             this.last = null;
             this.unload_event_handler = _.bind(this.unload, this);
-            this.lg_im = new instance.web.LongPolling();
+            this.lg_im_message = new instance.web.LongPolling();
+            this.lg_im_user = new instance.web.LongPolling();
         },
         start_polling: function() {
             var self = this;
             mess = new instance.web.Model('im.message');
-            this.lg_im.start_longpolling(
+            this.lg_im_message.start_longpolling(
                 this.__parentedParent.session, '/im/message', {},
                 function (result) {
                     var deferred = $.Deferred();
                     var messages = result.messages;
                     var user_id = result.user_id;
-                    //var status = result.status;
-                    //_.each(status, function(el) {
-                        //if (self.get_user(el.id))
-                            //self.get_user(el.id).set(el);
-                    //});
                     var user_ids = _.union(
                         _.pluck(messages, 'from_id'),
                         _.pluck(messages, 'to_id'));
@@ -232,6 +240,15 @@ openerp.im = function(instance) {
                         }, 330);
                     });
                     return deferred;
+                }
+            );
+            this.lg_im_user.start_longpolling(
+                this.__parentedParent.session, '/im/user', {},
+                function (status) {
+                    _.each(status, function(el) {
+                        if (self.get_user(el.id))
+                            self.get_user(el.id).set(el);
+                    });
                 }
             );
         },

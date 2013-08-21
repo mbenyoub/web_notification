@@ -181,8 +181,8 @@ class OpenERPService(object):
         self.registry = registry
         self.adapter = adapter
 
-    def model(self, openerpmodel):
-        return self.registry.get_openerpobject(self.uid, openerpmodel,
+    def model(self, uid, openerpmodel):
+        return self.registry.get_openerpobject(uid, openerpmodel,
                                                autocommit=True)
 
     def listen(self, *args, **kwargs):
