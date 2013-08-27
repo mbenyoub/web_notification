@@ -1,3 +1,6 @@
+TO REFACTOR 
+-----------
+
 Long polling
 ============
 
