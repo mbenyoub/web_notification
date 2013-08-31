@@ -7,9 +7,9 @@ class IrNotification(osv.Model):
     _name = 'ir.notification'
     _description = 'OpenERP Notification'
     _inherit = [
-        'longpolling.notification',
+        'postgres.notification',
     ]
-    _longpolling_channel = 'notification'
+    _postgres_channel = 'notification'
 
     _columns = {
         'mode': fields.selection([

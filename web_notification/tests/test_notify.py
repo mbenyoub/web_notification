@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from openerp.tests.common import TransactionCase
-from openerp.addons.web_longpolling.longpolling import longpolling
-from openerp.addons.web_longpolling.session import OpenERPRegistry
+from openerp.addons.web_socketio.session import OpenERPRegistry
 from ..controller import NotificationAdapter
 from gevent import sleep
-
-
-longpolling.patch_all()
 
 
 class TestIrNotification(TransactionCase):

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from openerp.addons.web_longpolling.longpolling import longpolling
-from openerp.addons.web_longpolling.session import AbstractAdapter
-
-#POLL_SLEEP = 0.5
+from openerp.addons.web_longpolling.namespace import LongPollingNameSpace
+from openerp.addons.web_socketio.session import AbstractAdapter
 
 
 class NotificationAdapter(AbstractAdapter):
@@ -17,8 +15,12 @@ class NotificationAdapter(AbstractAdapter):
         return res
 
 
-@longpolling.route('/notification', adapter=NotificationAdapter)
-def get_notifications(session, **kwargs):
-    return session.listen(session.uid)
+@LongPollingNameSpace.on(
+    'notification', adapterClass=NotificationAdapter, eventtype='connect')
+def get_notifications(session):
+    while True:
+        notifications = session.listen(session.uid)
+        session.validate(True)
+        session.emit('get notification', notifications)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
