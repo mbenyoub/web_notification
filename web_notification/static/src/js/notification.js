@@ -3,7 +3,7 @@ openerp.web_notification = function (instance) {
         show_application: function() {
             var self = this;
             this._super();
-            this.socket.on('get notification', function (notifications) {
+            instance.web.longpolling_socket.on('get notification', function (notifications) {
                 _(notifications).each( function(notification) {
                     if (notification.mode == 'warn'){
                         self.do_warn(notification.subject, 
