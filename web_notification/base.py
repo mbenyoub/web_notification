@@ -19,14 +19,16 @@ class ResUsers(osv.Model):
         'notification_sticky': False,
     }
 
-    def post_notification(self, cr, uid, to_user_id, title='', message='',
+    def post_notification(self, cr, uid, to_user_ids, title='', message='',
                           mode='notify', context=None):
+        if not isinstance(to_user_ids, (list, tuple)):
+            to_user_ids = [to_user_ids]
         vals = {
             'subject': title,
             'body': message,
-            'user_ids': [to_user_id],
+            'user_ids': [(4, x) for x in to_user_ids],
             'mode': mode,
         }
-        self.pool.get('ir.notification').create(cr, uid, vals)
+        return self.pool.get('ir.notification').create(cr, uid, vals)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

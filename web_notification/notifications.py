@@ -28,7 +28,9 @@ class IrNotification(osv.Model):
     def create(self, cr, uid, values, context=None):
         id = super(IrNotification, self).create(
             cr, uid, values, context=context)
-        self.notify(cr, uid, **values)
+        read = self.read(cr, uid, id, [], context=context)
+        del read['id']
+        self.notify(cr, uid, **read)
         return id
 
     def notify(self, cr, uid, user_ids, **values):
