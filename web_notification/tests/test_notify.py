@@ -33,14 +33,14 @@ class TestIrNotification(TransactionCase):
         }
         self.registry('ir.notification').create(self.cr, self.uid, vals)
         sleep(0)
-        messages = NotificationAdapter(self.r).listen(self.uid)
+        messages = NotificationAdapter(self.r, 'socket').listen(self.uid)
         self.assert_result(messages)
 
     def test_user_post_notification(self):
         self.registry('res.users').post_notification(
             self.cr, self.uid, self.uid, title='test', message='test body')
         sleep(0)
-        messages = NotificationAdapter(self.r).listen(self.uid)
+        messages = NotificationAdapter(self.r, 'socket').listen(self.uid)
         self.assert_result(messages)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
