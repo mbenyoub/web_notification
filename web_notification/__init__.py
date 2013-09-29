@@ -3,3 +3,4 @@
 import controller
 import notifications
 import base
+import setting

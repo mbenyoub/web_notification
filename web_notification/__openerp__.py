@@ -41,6 +41,7 @@ Display Notification for user
     'data': [
         'security/ir.model.access.csv',
         'base.xml',
+        'setting.xml',
     ],
     'js': [
         'static/src/js/notification.js',
