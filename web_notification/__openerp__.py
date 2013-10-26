@@ -23,7 +23,7 @@
 ###############################################################################
 {
     'name': 'Notifications',
-    'version': '1.0.0',
+    'version': '1.0.1',
     'sequence': 150,
     'category': 'Anybox',
     'description': """
