@@ -16,6 +16,7 @@ class TestIrNotification(TransactionCase):
         super(TestIrNotification, self).setUp()
         self.r = OpenERPRegistry.add(self.cr.dbname, 2)
         self.r.listen()
+        sleep(5)
 
     def assert_result(self, messages):
         assert messages
@@ -32,14 +33,14 @@ class TestIrNotification(TransactionCase):
             'mode': 'notify',
         }
         self.registry('ir.notification').create(self.cr, self.uid, vals)
-        sleep(0)
+        sleep(5)
         messages = NotificationAdapter(self.r, 'socket').listen(self.uid)
         self.assert_result(messages)
 
     def test_user_post_notification(self):
         notification_id = self.registry('res.users').post_notification(
             self.cr, self.uid, self.uid, title='test', message='test body')
-        sleep(0)
+        sleep(5)
         messages = NotificationAdapter(self.r, 'socket').listen(self.uid)
         self.assert_result(messages)
         r = self.registry('ir.notification').read(
