@@ -31,8 +31,8 @@ Display Notification for user
 =============================
 
     """,
-    'author': 'ANYBOX',
-    'website': 'www.anybox.fr',
+    'author': 'Anybox',
+    'website': 'http://anybox.fr',
     'depends': [
         'base',
         'web',

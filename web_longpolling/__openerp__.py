@@ -5,8 +5,8 @@
     'category': 'Anybox',
     'description': """
     """,
-    'author': 'ANYBOX',
-    'website': 'www.anybox.fr',
+    'author': 'Anybox',
+    'website': 'http://anybox.fr',
     'depends': [
         'base',
         'web',
