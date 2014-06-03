@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from openerp.osv import osv, fields
 import thread
 from openerp.modules.registry import RegistryManager
@@ -24,35 +22,42 @@ class Setting(osv.TransientModel):
              ('cron', "Notification by cron")], "Make a ckeck", required=True),
         'delay': fields.integer('Delay'),
         'dt': fields.datetime('Date time'),
+        'user_id': fields.many2one('res.users', 'User to notify'),
     }
 
     _defaults = {
         'mode': 'notify',
         'makecheck': 'none',
         'delay': 0,
+        'user_id': lambda self, cr, uid, c={}: uid,
     }
 
     def button_check_notification(self, cr, uid, ids, context=None):
-        r = self.read(cr, uid, ids[0], ['title', 'message', 'mode'],
-                      context=context)
+        r = self.read(cr, uid, ids[0], ['title', 'message', 'mode', 'user_id'],
+                      load="_classic_write", context=context)
         del r['id']
+        user_id = r.get('user_id', uid)
+        del r['user_id']
         self.pool.get('res.users').post_notification(
-            cr, uid, [uid], context=context, **r)
+            cr, uid, [user_id], context=context, **r)
         return True
 
     def button_check_notification_delay(self, cr, uid, ids, context=None):
-        r = self.read(cr, uid, ids[0], ['title', 'message', 'mode', 'delay'],
-                      context=context)
+        r = self.read(cr, uid, ids[0],
+                      ['title', 'message', 'mode', 'delay', 'user_id'],
+                      load="_classic_write", context=context)
         del r['id']
         delay = r['delay']
         del r['delay']
+        user_id = r.get('user_id', uid)
+        del r['user_id']
 
         def thread_method(dbname, delay, kwargs):
             sleep(delay)
             registry = RegistryManager.get(dbname)
             cursor = registry.db.cursor()
             registry.get('res.users').post_notification(
-                cursor, uid, [uid], **kwargs)
+                cursor, uid, [user_id], **kwargs)
             cursor.commit()
             cursor.close()
             return True
@@ -61,8 +66,11 @@ class Setting(osv.TransientModel):
         return True
 
     def button_check_notification_cron(self, cr, uid, ids, context=None):
-        r = self.read(cr, uid, ids[0], ['title', 'message', 'mode', 'dt'],
-                      context=context)
+        r = self.read(cr, uid, ids[0],
+                      ['title', 'message', 'mode', 'dt', 'user_id'],
+                      load="_classic_write", context=context)
+        user_id = r.get('user_id', uid)
+        del r['user_id']
         vals = {
             'name': "Check notification",
             'user_id': uid,
@@ -71,7 +79,8 @@ class Setting(osv.TransientModel):
             'doall': True,
             'model': 'res.users',
             'function': 'post_notification',
-            'args': str(([uid], r['title'], r['message'], r['mode'], context)),
+            'args': str(([user_id], r['title'], r['message'], r['mode'],
+                         context)),
         }
         if r['dt']:
             vals.update({
@@ -79,5 +88,3 @@ class Setting(osv.TransientModel):
             })
 
         self.pool.get('ir.cron').create(cr, SUPERUSER_ID, vals, context=context)
-
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

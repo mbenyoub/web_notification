@@ -7,15 +7,16 @@
             <field name="priority" eval="8"/>
             <field name="arch" type="xml">
                 <form string="Notification" version="7.0">
-                    <header> 
+                    <header>
                         <button string="Cancel" type="object" name="cancel" class="oe_link"/>
                     </header>
                     <sheet>
                         <field name="makecheck"/>
                         <group string="Send a notification" col="4">
-                            <field name="title" 
+                            <field name="title"
                                 attrs="{'required': [('makecheck', '!=', 'none')]}"/>
                             <field name="mode"/>
+                            <field name="user_id"/>
                             <field name="message" colspan="4"
                                 attrs="{'required': [('makecheck', '!=', 'none')]}"/>
                         </group>
