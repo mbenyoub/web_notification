@@ -1,6 +1,10 @@
 Web notification for OpenERP v7
 ===============================
 
+.. warning::
+    Odoo has is own internal bus service in v8, the sockectio won't be supported.
+    The branch v8 implement notification with the odoo bus
+
 How Install the module ``web_notification``
 -------------------------------------------
 
