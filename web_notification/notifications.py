@@ -1,15 +1,9 @@
-# -*- coding: utf-8 -*-
-
 from openerp.osv import osv, fields
 
 
 class IrNotification(osv.Model):
     _name = 'ir.notification'
     _description = 'OpenERP Notification'
-    _inherit = [
-        'postgres.notification',
-    ]
-    _postgres_channel = 'notification'
 
     _columns = {
         'mode': fields.selection([
@@ -34,13 +28,10 @@ class IrNotification(osv.Model):
         return id
 
     def notify(self, cr, uid, user_ids, **values):
+        bus = self.pool.get('bus.bus')
         for user in self.pool.get('res.users').read(cr, uid, user_ids,
                                                     ['notification_sticky']):
             message = values.copy()
-            message.update({
-                'to_id': user['id'],
-                'sticky': user['notification_sticky'],
-            })
-            super(IrNotification, self).notify(cr, uid, **message)
-
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
+            message['sticky'] = user['notification_sticky']
+            print 'notify_res_user_%d' % user['id']
+            bus.sendone(cr, uid, 'notify_res_user_%d' % user['id'], message)

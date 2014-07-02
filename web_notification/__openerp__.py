@@ -1,7 +1,7 @@
 ###############################################################################
 #
 #    web_notification module for OpenERP, display notification
-#    Copyright (C) 2013 ANYBOX (<http://www.anybox.fr>)
+#    Copyright (C) 2014 ANYBOX (<http://www.anybox.fr>)
 #                         Jean-Sebastien SUZANNE <jssuzanne@anybox.fr>
 #
 #    This file is a part of anybox_login_demo
@@ -36,15 +36,13 @@ Display Notification for user
     'depends': [
         'base',
         'web',
-        'web_longpolling',
+        'bus',
     ],
     'data': [
         'security/ir.model.access.csv',
         'base.xml',
         'setting.xml',
-    ],
-    'js': [
-        'static/src/js/notification.js',
+        'template.xml'
     ],
     'installable': True,
     'application': False,
