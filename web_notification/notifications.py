@@ -33,5 +33,4 @@ class IrNotification(osv.Model):
                                                     ['notification_sticky']):
             message = values.copy()
             message['sticky'] = user['notification_sticky']
-            print 'notify_res_user_%d' % user['id']
             bus.sendone(cr, uid, 'notify_res_user_%d' % user['id'], message)

@@ -50,7 +50,7 @@ class Setting(osv.TransientModel):
         def thread_method(dbname, delay, kwargs):
             sleep(delay)
             registry = RegistryManager.get(dbname)
-            cursor = registry.db.cursor()
+            cursor = registry._db.cursor()
             registry.get('res.users').post_notification(
                 cursor, uid, [uid], **kwargs)
             cursor.commit()
