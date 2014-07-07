@@ -1,36 +1,29 @@
-from openerp.osv import osv, fields
+from openerp import models, fields, api
 
 
-class IrNotification(osv.Model):
+class IrNotification(models.Model):
     _name = 'ir.notification'
     _description = 'OpenERP Notification'
 
-    _columns = {
-        'mode': fields.selection([
-            ('notify', 'Notification'), ('warn', 'Warning')], 'Mode',
-            required=True),
-        'subject': fields.char('Subject', size=64, required=True),
-        'body': fields.html('Body', required=True),
-        'user_ids': fields.many2many('res.users', 'user_notified_rel',
-                                     'notify_id', 'user_id', 'Users'),
-    }
+    mode = fields.Selection(selection=[('notify', 'Notification'),
+                                       ('warn', 'Warning')],
+                            required=True,
+                            default='notify')
+    subject = fields.Char(required=True)
+    body = fields.Html(required=True)
+    user_ids = fields.Many2many(comodel_name='res.users',
+                                relation='user_notified_rel',
+                                column1='notify_id',
+                                column2='user_id')
 
-    _defaults = {
-        'mode': 'notify',
-    }
+    @api.model
+    def create(self, values):
+        res = super(IrNotification, self).create(values)
+        vals = res.read()[0]
+        bus = res.env['bus.bus']
+        for user in res.user_ids:
+            message = vals.copy()
+            message['sticky'] = user.notification_sticky
+            bus.sendone('notify_res_user_%d' % user.id, message)
 
-    def create(self, cr, uid, values, context=None):
-        id = super(IrNotification, self).create(
-            cr, uid, values, context=context)
-        read = self.read(cr, uid, id, [], context=context)
-        del read['id']
-        self.notify(cr, uid, **read)
-        return id
-
-    def notify(self, cr, uid, user_ids, **values):
-        bus = self.pool.get('bus.bus')
-        for user in self.pool.get('res.users').read(cr, uid, user_ids,
-                                                    ['notification_sticky']):
-            message = values.copy()
-            message['sticky'] = user['notification_sticky']
-            bus.sendone(cr, uid, 'notify_res_user_%d' % user['id'], message)
+        return res
