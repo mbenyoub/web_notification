@@ -4,7 +4,7 @@
             this._super();
             var self = this,
                 channel = 'notify_res_user_' + this.session.uid;
-            this.on(channel, this, function(message) {
+            this.bus_on(channel, function(message) {
                 if (message.mode == 'warn'){
                     self.do_warn(message.subject,
                                  message.body,

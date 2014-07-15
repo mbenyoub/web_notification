@@ -25,12 +25,14 @@ class Setting(models.TransientModel):
                                  required=True)
     delay = fields.Integer(default=0)
     dt = fields.Datetime(string='Date time')
+    user = fields.Many2one('res.users', default=lambda self: self.env.user,
+                           required=True)
 
     @api.multi
     def button_check_notification(self):
         r = self.read(['title', 'message', 'mode'])[0]
         del r['id']
-        self.env.user.post_notification(**r)
+        self.user.post_notification(**r)
         return True
 
     @api.multi
@@ -38,7 +40,7 @@ class Setting(models.TransientModel):
         r = self.read(['title', 'message', 'mode', 'delay'])[0]
         del r['id']
         delay = r.pop('delay')
-        uid = self.env.uid
+        uid = self.user.id
         context = self.env.context
 
         def thread_method(dbname):
@@ -58,7 +60,7 @@ class Setting(models.TransientModel):
     @api.multi
     def button_check_notification_cron(self):
         r = self.read(['title', 'message', 'mode', 'dt'])[0]
-        uid = self.env.uid
+        uid = self.user.id
         context = self.env.context
         vals = {
             'name': "Check notification",
